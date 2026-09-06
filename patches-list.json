@@ -1,6 +1,6 @@
 {
   "NOTE": "Do NOT manually edit this file. This file is automatically updated when semantic release (release.yml) runs. Manually editing this file can break your releases and break third party tools that use this file.",
-  "version": "1.21.4",
+  "version": "1.0.0",
   "patches": [
     {
       "name": "AMOLED dark theme",
@@ -3403,6 +3403,90 @@
                 "ARMEABI_V7A": 47,
                 "X86_64": 47,
                 "X86": 47
+              },
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Sort by number of ratings",
+      "description": "Adds a 'Sort: Most rated' button on Amazon search/listing pages that re-orders loaded results by ratings count, descending.",
+      "default": false,
+      "dependencies": [],
+      "compatiblePackages": [
+        {
+          "packageName": "com.amazon.mShop.android.shopping",
+          "name": "Amazon Shopping",
+          "description": null,
+          "apkFileType": "XAPK",
+          "appIconColor": "#FF9900",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "32.13.2.100",
+              "versionCodes": {
+                "ARM64_V8A": 1241320216,
+                "ARMEABI_V7A": 1241320216,
+                "X86_64": 1241320216,
+                "X86": 1241320216
+              },
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        },
+        {
+          "packageName": "in.amazon.mShop.android.shopping",
+          "name": "Amazon India",
+          "description": null,
+          "apkFileType": "XAPK",
+          "appIconColor": "#FF9900",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "32.16.2.300",
+              "versionCodes": {
+                "ARM64_V8A": 1243222206,
+                "ARMEABI_V7A": 1243222206,
+                "X86_64": 1243222206,
+                "X86": 1243222206
+              },
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Sort by number of ratings",
+      "description": "Adds a 'Sort: Most rated' button on Flipkart listing pages (WebView-rendered surfaces) that re-orders loaded results by ratings count.",
+      "default": false,
+      "dependencies": [],
+      "compatiblePackages": [
+        {
+          "packageName": "com.flipkart.android",
+          "name": "Flipkart",
+          "description": null,
+          "apkFileType": "XAPK",
+          "appIconColor": "#2874F0",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "7.8.0",
+              "versionCodes": {
+                "ARM64_V8A": 0,
+                "ARMEABI_V7A": 0,
+                "X86_64": 0,
+                "X86": 0
               },
               "isExperimental": false,
               "minSdk": null,

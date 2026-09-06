@@ -1,3 +1,9 @@
+## 1.0.0 (2026-09-06)
+
+### ✨ New Features
+
+* add sort by number of ratings patches for Amazon and Flipkart ([ebc49c5](https://github.com/debakarr/morphe-patches/commit/ebc49c5138b7a03f039c2a60cfec4d71486190c4))
+
 ## [1.21.4](https://github.com/rushiranpise/morphe-patches/compare/v1.21.3...v1.21.4) (2026-09-01)
 
 ### 🐛 Bug Fixes

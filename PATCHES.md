@@ -1,6 +1,6 @@
 # Patches
 
-> Generated from `patches-list.json` — **v1.21.4** (`main`) · **334 patches** across **235 apps** · back to [README](README.md)
+> Generated from `patches-list.json` — **v1.0.0** (`main`) · **337 patches** across **236 apps** · back to [README](README.md)
 
 ---
 
@@ -151,6 +151,7 @@
 | **Open links in browser** | Opens non-Amazon URLs in the default browser instead of the in-app WebView. |
 | **Price history charts** | Injects Keepa and CamelCamelCamel price history charts on Amazon product pages.<br><sub>Options: Chart period, Show period toggle, Toggle periods, +5 more</sub> |
 | **Remove ads** | Hides sponsored and ad content in Amazon Shopping via CSS injection. |
+| **Sort by number of ratings** | Adds a 'Sort: Most rated' button on Amazon search/listing pages that re-orders loaded results by ratings count, descending. |
 
 ---
 
@@ -168,6 +169,7 @@
 | **Open links in browser** | Opens non-Amazon URLs in the default browser instead of the in-app WebView. |
 | **Price history charts** | Injects Keepa and CamelCamelCamel price history charts on Amazon product pages.<br><sub>Options: Chart period, Show period toggle, Toggle periods, +5 more</sub> |
 | **Remove ads** | Hides sponsored and ad content in Amazon Shopping via CSS injection. |
+| **Sort by number of ratings** | Adds a 'Sort: Most rated' button on Amazon search/listing pages that re-orders loaded results by ratings count, descending. |
 
 ---
 
@@ -813,6 +815,16 @@
 | Patch | Details |
 |---|---|
 | **Unlock Premium** | Unlocks premium features in app. |
+
+---
+
+## Flipkart (com.flipkart.android)
+
+**Supported versions:** `7.8.0`
+
+| Patch | Details |
+|---|---|
+| **Sort by number of ratings** | Adds a 'Sort: Most rated' button on Flipkart listing pages (WebView-rendered surfaces) that re-orders loaded results by ratings count. |
 
 ---
 
