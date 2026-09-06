@@ -1,5 +1,9 @@
 # Sort by number of ratings — Amazon + Flipkart (Morphe patch scaffold)
 
+[![Add to Morphe](add-to-morphe.svg)](https://morphe.software/add-source?github=debakarr/morphe-patches)
+
+Click here to add these patches to Morphe: https://morphe.software/add-source?github=debakarr/morphe-patches
+
 Client-side DOM reorder, descending by parsed ratings count. Neither site
 offers a server-side "sort by ratings count", so this sorts only the cards
 already loaded on the page.
