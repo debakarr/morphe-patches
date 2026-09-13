@@ -1,0 +1,1 @@
+357da8ba0b9844787a066a99636b819824987eabac278b2e6789c66b8be42bf8  patches/build/libs/patches-1.1.2.mpp
