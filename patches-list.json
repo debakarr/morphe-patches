@@ -1,6 +1,6 @@
 {
   "NOTE": "Do NOT manually edit this file. This file is automatically updated when semantic release (release.yml) runs. Manually editing this file can break your releases and break third party tools that use this file.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "patches": [
     {
       "name": "AMOLED dark theme",
@@ -3468,7 +3468,7 @@
     },
     {
       "name": "Sort by number of ratings",
-      "description": "Adds a 'Sort: Most rated' button on Flipkart listing pages (WebView-rendered surfaces) that re-orders loaded results by ratings count.",
+      "description": "Sorts Flipkart search results by number of ratings (descending) via native JSON interception of the React Native NetworkCaller bridge.",
       "default": false,
       "dependencies": [],
       "compatiblePackages": [
@@ -3481,12 +3481,12 @@
           "signatures": null,
           "targets": [
             {
-              "version": "7.8.0",
+              "version": "9.13",
               "versionCodes": {
-                "ARM64_V8A": 0,
-                "ARMEABI_V7A": 0,
-                "X86_64": 0,
-                "X86": 0
+                "ARM64_V8A": 3220300,
+                "ARMEABI_V7A": 3220300,
+                "X86_64": 3220300,
+                "X86": 3220300
               },
               "isExperimental": false,
               "minSdk": null,

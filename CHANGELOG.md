@@ -1,3 +1,9 @@
+## [1.1.0](https://github.com/debakarr/morphe-patches/compare/v1.0.0...v1.1.0) (2026-09-13)
+
+### ✨ New Features
+
+* **flipkart:** native hook for sort by ratings count ([c4008d7](https://github.com/debakarr/morphe-patches/commit/c4008d783597331f0ddbe22c91cc2602ef20cadb))
+
 ## 1.0.0 (2026-09-06)
 
 ### ✨ New Features

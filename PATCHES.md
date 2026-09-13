@@ -1,6 +1,6 @@
 # Patches
 
-> Generated from `patches-list.json` — **v1.0.0** (`main`) · **337 patches** across **236 apps** · back to [README](README.md)
+> Generated from `patches-list.json` — **v1.1.0** (`main`) · **337 patches** across **236 apps** · back to [README](README.md)
 
 ---
 
@@ -820,11 +820,11 @@
 
 ## Flipkart (com.flipkart.android)
 
-**Supported versions:** `7.8.0`
+**Supported versions:** `9.13`
 
 | Patch | Details |
 |---|---|
-| **Sort by number of ratings** | Adds a 'Sort: Most rated' button on Flipkart listing pages (WebView-rendered surfaces) that re-orders loaded results by ratings count. |
+| **Sort by number of ratings** | Sorts Flipkart search results by number of ratings (descending) via native JSON interception of the React Native NetworkCaller bridge. |
 
 ---
 
