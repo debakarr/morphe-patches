@@ -17,8 +17,8 @@ val flipkartSortByRatingsCountPatch = bytecodePatch(
     extendWith("extensions/extension.mpe")
 
     execute {
-        // Hook the RN NetworkCaller callback: OnSuccess(String)V
-        // p0 = this (network/a callback with Promise field "a")
+        // Hook the RN NetworkCaller callback: network.b.OnSuccess(String)V
+        // p0 = this (network.b callback with Promise field "a")
         // p1 = JSON response string
         //
         // We transform p1 in-place (sort products by ratingCount) then let the

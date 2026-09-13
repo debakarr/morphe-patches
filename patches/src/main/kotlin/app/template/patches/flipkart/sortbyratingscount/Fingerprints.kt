@@ -14,7 +14,7 @@ import app.morphe.patcher.Fingerprint
  * by `ratingCount` descending, and pass the sorted JSON back to JS.
  */
 internal val NetworkCallerOnSuccessFingerprint = Fingerprint(
-    definingClass = "Lcom/flipkart/reacthelpersdk/modules/network/a;",
+    definingClass = "Lcom/flipkart/reacthelpersdk/modules/network/b;",
     name = "OnSuccess",
     returnType = "V",
     parameters = listOf("Ljava/lang/String;"),
