@@ -2,6 +2,15 @@ package app.template.extension.extension;
 
 import android.webkit.WebView;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
+
 /**
  * SortByRatingsHelper — client-side "sort by number of ratings" for
  * Amazon and Flipkart search/listing pages.
@@ -189,6 +198,157 @@ public final class SortByRatingsHelper {
         cfg.append(",\"sponsored\":").append(jsonArray(SPONSORED_HINTS));
         cfg.append("}");
         webView.evaluateJavascript("(" + SORT_RATINGS_JS + ")(" + cfg + ");", null);
+    }
+
+    /**
+     * Processes a Flipkart React Native NetworkCaller JSON response, sorting
+     * product entries by {@code ratingCount} descending.
+     *
+     * <p>Flipkart 9.13+ is a React Native app — search/browse results flow
+     * through the {@code NetworkCaller} bridge as raw JSON strings.  This method
+     * intercepts the JSON, finds the product map, extracts rating counts, and
+     * re-orders the product entries so the JS bundle renders them sorted by
+     * number of ratings.
+     *
+     * <p>The method is defensive: if parsing fails, no product map is found, or
+     * fewer than 2 products have parseable rating counts, the original string is
+     * returned unchanged.
+     *
+     * @param json the raw JSON response from the Flipkart API
+     * @return sorted JSON string, or the original if sorting is not applicable
+     */
+    public static String processFlipkartSearchResponse(String json) {
+        if (json == null || json.length() < 10) return json;
+
+        try {
+            JSONObject root = new JSONObject(json);
+
+            // Flipkart API response: { "search": {...}, "product": { "PID": {...}, ... }, ... }
+            // The "product" key holds a map of productId -> productObject.
+            JSONObject productMap = root.optJSONObject("product");
+            if (productMap == null) return json;
+
+            // Extract entries with their rating counts
+            List<ProductEntry> entries = new ArrayList<>();
+            Iterator<String> keys = productMap.keys();
+            while (keys.hasNext()) {
+                String key = keys.next();
+                JSONObject product = productMap.optJSONObject(key);
+                if (product == null) continue;
+                int ratingCount = extractRatingCount(product);
+                entries.add(new ProductEntry(key, product, ratingCount));
+            }
+
+            if (entries.size() < 2) return json;
+
+            // Check if at least 2 entries have a parseable rating count
+            int withRating = 0;
+            for (ProductEntry e : entries) {
+                if (e.ratingCount > 0) withRating++;
+            }
+            if (withRating < 2) return json;
+
+            // Sort descending by rating count; ties preserve original order
+            Collections.sort(entries, new Comparator<ProductEntry>() {
+                @Override
+                public int compare(ProductEntry a, ProductEntry b) {
+                    return Integer.compare(b.ratingCount, a.ratingCount);
+                }
+            });
+
+            // Build a new product map with sorted entries
+            JSONObject sortedProductMap = new JSONObject();
+            for (ProductEntry entry : entries) {
+                sortedProductMap.put(entry.key, entry.product);
+            }
+            root.put("product", sortedProductMap);
+
+            return root.toString();
+        } catch (JSONException e) {
+            // Malformed JSON or structural change — return original
+            return json;
+        } catch (Exception e) {
+            // Unexpected error — never break the app
+            return json;
+        }
+    }
+
+    /**
+     * Extracts the rating count from a Flipkart product JSON object.
+     *
+     * <p>Tries multiple known paths:
+     * <ol>
+     *   <li>{@code trackingDataV2.ratingCount} — the TrackingDataV2 Parcelable field</li>
+     *   <li>{@code value.productInfo.trackingDataV2.ratingCount} — nested under value</li>
+     *   <li>{@code value.productInfo.rating.totalRatingCount} — alternative rating field</li>
+     * </ol>
+     */
+    private static int extractRatingCount(JSONObject product) {
+        // Path 1: direct trackingDataV2.ratingCount
+        int count = nestedInt(product, "trackingDataV2", "ratingCount");
+        if (count > 0) return count;
+
+        // Path 2: value.productInfo.trackingDataV2.ratingCount
+        JSONObject value = product.optJSONObject("value");
+        if (value != null) {
+            JSONObject productInfo = value.optJSONObject("productInfo");
+            if (productInfo != null) {
+                count = nestedInt(productInfo, "trackingDataV2", "ratingCount");
+                if (count > 0) return count;
+
+                // Path 3: value.productInfo.rating.totalRatingCount
+                JSONObject rating = productInfo.optJSONObject("rating");
+                if (rating != null) {
+                    count = rating.optInt("totalRatingCount", 0);
+                    if (count > 0) return count;
+                    count = rating.optInt("ratingCount", 0);
+                    if (count > 0) return count;
+                }
+            }
+        }
+
+        // Path 4: scan for any "ratingCount" key (defensive fallback)
+        count = findIntField(product, "ratingCount");
+        return count;
+    }
+
+    private static int nestedInt(JSONObject obj, String child, String field) {
+        JSONObject c = obj.optJSONObject(child);
+        return c != null ? c.optInt(field, 0) : 0;
+    }
+
+    /** Recursively searches for an int field by name (max depth 3). */
+    private static int findIntField(JSONObject obj, String fieldName) {
+        return findIntField(obj, fieldName, 0);
+    }
+
+    private static int findIntField(JSONObject obj, String fieldName, int depth) {
+        if (depth > 3 || obj == null) return 0;
+        if (obj.has(fieldName)) {
+            return obj.optInt(fieldName, 0);
+        }
+        Iterator<String> keys = obj.keys();
+        while (keys.hasNext()) {
+            String key = keys.next();
+            Object val = obj.opt(key);
+            if (val instanceof JSONObject) {
+                int result = findIntField((JSONObject) val, fieldName, depth + 1);
+                if (result > 0) return result;
+            }
+        }
+        return 0;
+    }
+
+    private static final class ProductEntry {
+        final String key;
+        final JSONObject product;
+        final int ratingCount;
+
+        ProductEntry(String key, JSONObject product, int ratingCount) {
+            this.key = key;
+            this.product = product;
+            this.ratingCount = ratingCount;
+        }
     }
 
     private static String jsonArray(String[] values) {

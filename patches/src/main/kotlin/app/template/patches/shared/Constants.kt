@@ -1939,7 +1939,7 @@ val FLIPKART_COMPATIBILITY = Compatibility(
         packageName = "com.flipkart.android",
         appIconColor = 0x2874F0,
         apkFileType = ApkFileType.XAPK,
-        targets = listOf(AppTarget(version = "7.8.0", versionCode = 0))
+        targets = listOf(AppTarget(version = "9.13", versionCode = 3220300))
     )
 
 val LEAP_FITNESS_ALL = arrayOf(

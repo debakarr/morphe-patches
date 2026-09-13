@@ -24,7 +24,7 @@
 > Based on [rushiranpise/morphe-patches](https://github.com/rushiranpise/morphe-patches).
 > This fork adds:
 > - **Amazon: Sort by number of ratings** — a "Sort: Most rated" button on search/listing pages (`patches/.../amazon/sortbyratingscount/`, helper `SortByRatingsHelper`)
-> - **Flipkart: Sort by number of ratings** — same button for WebView-rendered listing surfaces (`patches/.../flipkart/sortbyratingscount/`); native search surfaces still need a comparator hook from APK analysis, see `Flipkart Fingerprints.kt` TODO
+> - **Flipkart: Sort by number of ratings** — intercepts React Native `NetworkCaller` bridge responses, parses JSON, sorts products by `ratingCount` descending before JS renders them (`patches/.../flipkart/sortbyratingscount/`); targets Flipkart 9.13+ (RN-based `multiWidget` bundle)
 
 <br/>
 
@@ -183,7 +183,7 @@ Bug reports must include:
 | 77 | [**FlightAware**](PATCHES.md#flightaware-comflightawareandroidliveflighttracker) | 1 | `5.16.1` | [`com.flightaware.android.liveFlightTracker`](https://play.google.com/store/apps/details?id=com.flightaware.android.liveFlightTracker) |
 | 78 | [**Flightradar24**](PATCHES.md#flightradar24-comflightradar24free) | 1 | `11.9.0` | [`com.flightradar24free`](https://play.google.com/store/apps/details?id=com.flightradar24free) |
 | 79 | [**Flightsky**](PATCHES.md#flightsky-comliveflighttracker) | 1 | `1.7.1` | [`com.live.flight.tracker`](https://play.google.com/store/apps/details?id=com.live.flight.tracker) |
-| 80 | [**Flipkart**](PATCHES.md#flipkart-comflipkartandroid) | 1 | `7.8.0` | [`com.flipkart.android`](https://play.google.com/store/apps/details?id=com.flipkart.android) |
+| 80 | [**Flipkart**](PATCHES.md#flipkart-comflipkartandroid) | 1 | `9.13` | [`com.flipkart.android`](https://play.google.com/store/apps/details?id=com.flipkart.android) |
 | 81 | [**Flud**](PATCHES.md#flud-comdelphicoderflud) | 1 | `2.0.15` | [`com.delphicoder.flud`](https://play.google.com/store/apps/details?id=com.delphicoder.flud) |
 | 82 | [**Fuelio**](PATCHES.md#fuelio-comkajdafuelio) | 1 | `10.3.4` | [`com.kajda.fuelio`](https://play.google.com/store/apps/details?id=com.kajda.fuelio) |
 | 83 | [**Genius Scan**](PATCHES.md#genius-scan-comthegrizzlylabsgeniusscanfree) | 1 | `7.41.0` | [`com.thegrizzlylabs.geniusscan.free`](https://play.google.com/store/apps/details?id=com.thegrizzlylabs.geniusscan.free) |
