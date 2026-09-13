@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-09-13T10:31:29",
-  "description": "## [1.1.0](https://github.com/debakarr/morphe-patches/compare/v1.0.0...v1.1.0) (2026-09-13)\n\n### ✨ New Features\n\n* **flipkart:** native hook for sort by ratings count ([c4008d7](https://github.com/debakarr/morphe-patches/commit/c4008d783597331f0ddbe22c91cc2602ef20cadb))",
-  "download_url": "https://github.com/debakarr/morphe-patches/releases/download/v1.1.0/patches-1.1.0.mpp",
+  "created_at": "2026-09-13T10:52:37",
+  "description": "## [1.1.1](https://github.com/debakarr/morphe-patches/compare/v1.1.0...v1.1.1) (2026-09-13)\n\n### 🐛 Bug Fixes\n\n* **flipkart:** order-preserving JSON surgery for sort by ratings ([c79679c](https://github.com/debakarr/morphe-patches/commit/c79679cab9e5e1f1b57ec6dddfcfb9cac9b0297a))",
+  "download_url": "https://github.com/debakarr/morphe-patches/releases/download/v1.1.1/patches-1.1.1.mpp",
   "signature_download_url": "",
-  "version": "1.1.0"
+  "version": "1.1.1"
 }

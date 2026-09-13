@@ -1,3 +1,9 @@
+## [1.1.1](https://github.com/debakarr/morphe-patches/compare/v1.1.0...v1.1.1) (2026-09-13)
+
+### 🐛 Bug Fixes
+
+* **flipkart:** order-preserving JSON surgery for sort by ratings ([c79679c](https://github.com/debakarr/morphe-patches/commit/c79679cab9e5e1f1b57ec6dddfcfb9cac9b0297a))
+
 ## [1.1.0](https://github.com/debakarr/morphe-patches/compare/v1.0.0...v1.1.0) (2026-09-13)
 
 ### ✨ New Features
