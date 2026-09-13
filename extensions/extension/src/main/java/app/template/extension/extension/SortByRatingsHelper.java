@@ -1,5 +1,6 @@
 package app.template.extension.extension;
 
+import android.util.Log;
 import android.webkit.WebView;
 
 import org.json.JSONException;
@@ -34,6 +35,9 @@ import java.util.List;
 public final class SortByRatingsHelper {
 
     private SortByRatingsHelper() {}
+
+    private static final String TAG = "MorpheSort";
+    private static int sNetworkCalls = 0;
 
     // Mirror of the ad-card signals used by AmazonHelper so sponsored
     // cards stay where the site put them.
@@ -219,6 +223,7 @@ public final class SortByRatingsHelper {
      */
     public static String processFlipkartSearchResponse(String json) {
         if (json == null || json.length() < 10) return json;
+        int call = ++sNetworkCalls;
 
         try {
             JSONObject root = new JSONObject(json);
@@ -226,51 +231,294 @@ public final class SortByRatingsHelper {
             // Flipkart API response: { "search": {...}, "product": { "PID": {...}, ... }, ... }
             // The "product" key holds a map of productId -> productObject.
             JSONObject productMap = root.optJSONObject("product");
-            if (productMap == null) return json;
-
-            // Extract entries with their rating counts
-            List<ProductEntry> entries = new ArrayList<>();
-            Iterator<String> keys = productMap.keys();
-            while (keys.hasNext()) {
-                String key = keys.next();
-                JSONObject product = productMap.optJSONObject(key);
-                if (product == null) continue;
-                int ratingCount = extractRatingCount(product);
-                entries.add(new ProductEntry(key, product, ratingCount));
+            if (productMap == null) {
+                if (call <= 20) {
+                    Log.d(TAG, "call#" + call + " len=" + json.length()
+                        + " keys=" + keyList(root) + " (no product map)");
+                }
+                return json;
             }
 
-            if (entries.size() < 2) return json;
+            int total = productMap.length();
+            if (total < 2) return json;
 
-            // Check if at least 2 entries have a parseable rating count
+            // Locate the "product" object span in the RAW string. We must do
+            // string-level surgery here: org.json.JSONObject is HashMap-backed
+            // and does NOT preserve insertion order, so rebuilding via
+            // JSONObject.toString() would emit products in hash order and the
+            // JS side would render them unsorted.
+            int[] span = findNamedObjectSpan(json, "product");
+            if (span == null) {
+                Log.d(TAG, "call#" + call + " product map with " + total
+                    + " entries but span not found");
+                return json;
+            }
+            List<int[]> rawEntries = splitTopLevelEntries(json, span[0] + 1, span[1] - 1);
+            if (rawEntries.size() < 2) return json;
+
+            // Score each raw entry by rating count (JSONObject used for
+            // READING only — order comes from the raw string).
+            List<RawEntry> entries = new ArrayList<>(rawEntries.size());
             int withRating = 0;
-            for (ProductEntry e : entries) {
-                if (e.ratingCount > 0) withRating++;
+            for (int[] bounds : rawEntries) {
+                String entry = json.substring(bounds[0], bounds[1]).trim();
+                String key = entryKey(entry);
+                int count = -1;
+                if (key != null) {
+                    JSONObject product = productMap.optJSONObject(key);
+                    if (product != null) {
+                        count = extractRatingCount(product);
+                        if (count > 0) withRating++;
+                    }
+                }
+                entries.add(new RawEntry(entry, count));
             }
-            if (withRating < 2) return json;
+            if (withRating < 2) {
+                Log.d(TAG, "call#" + call + " product entries=" + total
+                    + " withRating=" + withRating + " (nothing to sort)");
+                return json;
+            }
 
-            // Sort descending by rating count; ties preserve original order
-            Collections.sort(entries, new Comparator<ProductEntry>() {
+            String before = topKeys(entries, 3);
+
+            // Stable sort descending by rating count.
+            Collections.sort(entries, new Comparator<RawEntry>() {
                 @Override
-                public int compare(ProductEntry a, ProductEntry b) {
-                    return Integer.compare(b.ratingCount, a.ratingCount);
+                public int compare(RawEntry a, RawEntry b) {
+                    return Integer.compare(b.count, a.count);
                 }
             });
 
-            // Build a new product map with sorted entries
-            JSONObject sortedProductMap = new JSONObject();
-            for (ProductEntry entry : entries) {
-                sortedProductMap.put(entry.key, entry.product);
+            StringBuilder inner = new StringBuilder();
+            for (int i = 0; i < entries.size(); i++) {
+                if (i > 0) inner.append(',');
+                inner.append(entries.get(i).raw);
             }
-            root.put("product", sortedProductMap);
+            String result = json.substring(0, span[0] + 1) + inner + json.substring(span[1] - 1);
 
-            return root.toString();
+            // Sanity: result must still be valid JSON.
+            try {
+                new JSONObject(result);
+            } catch (JSONException je) {
+                Log.d(TAG, "call#" + call + " rebuilt JSON invalid, keeping original");
+                return json;
+            }
+
+            Log.d(TAG, "call#" + call + " SORTED entries=" + entries.size()
+                + " withRating=" + withRating + " before=" + before
+                + " after=" + topKeys(entries, 3));
+            JSONObject search = root.optJSONObject("search");
+            if (search != null && call <= 20) {
+                Log.d(TAG, "call#" + call + " search keys=" + keyList(search));
+            }
+            return result;
         } catch (JSONException e) {
             // Malformed JSON or structural change — return original
             return json;
         } catch (Exception e) {
             // Unexpected error — never break the app
+            Log.d(TAG, "call#" + call + " error: " + e);
             return json;
         }
+    }
+
+    private static String keyList(JSONObject obj) {
+        StringBuilder sb = new StringBuilder("[");
+        Iterator<String> keys = obj.keys();
+        int i = 0;
+        while (keys.hasNext() && i < 15) {
+            if (i > 0) sb.append(',');
+            sb.append(keys.next());
+            i++;
+        }
+        if (keys.hasNext()) sb.append(",...");
+        return sb.append(']').toString();
+    }
+
+    private static String topKeys(List<RawEntry> entries, int n) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < Math.min(n, entries.size()); i++) {
+            if (i > 0) sb.append(',');
+            sb.append(entries.get(i).count);
+        }
+        return sb.append(']').toString();
+    }
+
+    private static final class RawEntry {
+        final String raw;
+        final int count;
+
+        RawEntry(String raw, int count) {
+            this.raw = raw;
+            this.count = count;
+        }
+    }
+
+    // ---- Order-preserving raw JSON scanners (string/escape aware) ----
+
+    private static int skipWs(String s, int i) {
+        while (i < s.length()) {
+            char c = s.charAt(i);
+            if (c == ' ' || c == '\t' || c == '\n' || c == '\r') i++;
+            else break;
+        }
+        return i;
+    }
+
+    /** s.charAt(i) must be '"'; returns index one past the closing quote, or -1. */
+    private static int skipString(String s, int i) {
+        i++;
+        while (i < s.length()) {
+            char c = s.charAt(i);
+            if (c == '\\') {
+                i += 2;
+                continue;
+            }
+            if (c == '"') return i + 1;
+            i++;
+        }
+        return -1;
+    }
+
+    /** Returns index one past the JSON value starting at i, or -1. */
+    private static int skipValue(String s, int i) {
+        i = skipWs(s, i);
+        if (i >= s.length()) return -1;
+        char c = s.charAt(i);
+        if (c == '"') return skipString(s, i);
+        if (c == '{' || c == '[') {
+            char open = c;
+            char close = c == '{' ? '}' : ']';
+            int depth = 0;
+            while (i < s.length()) {
+                char d = s.charAt(i);
+                if (d == '"') {
+                    i = skipString(s, i);
+                    if (i < 0) return -1;
+                    continue;
+                }
+                if (d == open) depth++;
+                else if (d == close) {
+                    depth--;
+                    if (depth == 0) return i + 1;
+                }
+                i++;
+            }
+            return -1;
+        }
+        while (i < s.length()) {
+            char d = s.charAt(i);
+            if (d == ',' || d == '}' || d == ']' || d == ' '
+                || d == '\t' || d == '\n' || d == '\r') break;
+            i++;
+        }
+        return i;
+    }
+
+    /**
+     * Finds the span of a named object value at the root level.
+     * @return {indexOfOpenBrace, indexOnePastCloseBrace}, or null.
+     */
+    private static int[] findNamedObjectSpan(String s, String name) {
+        int i = skipWs(s, 0);
+        if (i >= s.length() || s.charAt(i) != '{') return null;
+        i++;
+        while (true) {
+            i = skipWs(s, i);
+            if (i >= s.length() || s.charAt(i) != '"') return null;
+            int keyEnd = skipString(s, i);
+            if (keyEnd < 0) return null;
+            String key = unescape(s.substring(i + 1, keyEnd - 1));
+            i = skipWs(s, keyEnd);
+            if (i >= s.length() || s.charAt(i) != ':') return null;
+            i = skipWs(s, i + 1);
+            if (name.equals(key)) {
+                if (i < s.length() && s.charAt(i) == '{') {
+                    int end = skipValue(s, i);
+                    if (end < 0) return null;
+                    return new int[]{i, end};
+                }
+                return null;
+            }
+            i = skipValue(s, i);
+            if (i < 0) return null;
+            i = skipWs(s, i);
+            if (i < s.length() && s.charAt(i) == ',') {
+                i++;
+                continue;
+            }
+            return null;
+        }
+    }
+
+    /** Splits [from, to) into top-level comma-separated entry spans. */
+    private static List<int[]> splitTopLevelEntries(String s, int from, int to) {
+        List<int[]> out = new ArrayList<>();
+        int i = skipWs(s, from);
+        int entryStart = i;
+        boolean empty = true;
+        while (i < to) {
+            char c = s.charAt(i);
+            if (c == '"') {
+                i = skipString(s, i);
+                if (i < 0) return out;
+                continue;
+            }
+            if (c == '{' || c == '[') {
+                i = skipValue(s, i);
+                if (i < 0 || i > to) return out;
+                continue;
+            }
+            if (c == ',') {
+                out.add(new int[]{entryStart, i});
+                i = skipWs(s, i + 1);
+                entryStart = i;
+                empty = true;
+                continue;
+            }
+            empty = false;
+            i++;
+        }
+        if (!empty || !out.isEmpty()) {
+            int end = i;
+            while (end > entryStart && Character.isWhitespace(s.charAt(end - 1))) end--;
+            if (end > entryStart) out.add(new int[]{entryStart, end});
+        }
+        return out;
+    }
+
+    /** Extracts the key string of a "key":value entry, or null. */
+    private static String entryKey(String entry) {
+        int i = 0;
+        while (i < entry.length() && Character.isWhitespace(entry.charAt(i))) i++;
+        if (i >= entry.length() || entry.charAt(i) != '"') return null;
+        int keyEnd = skipString(entry, i);
+        if (keyEnd < 0) return null;
+        return unescape(entry.substring(i + 1, keyEnd - 1));
+    }
+
+    private static String unescape(String s) {
+        if (s.indexOf('\\') < 0) return s;
+        StringBuilder sb = new StringBuilder(s.length());
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '\\' && i + 1 < s.length()) {
+                char n = s.charAt(i + 1);
+                switch (n) {
+                    case '"': sb.append('"'); break;
+                    case '\\': sb.append('\\'); break;
+                    case '/': sb.append('/'); break;
+                    case 'n': sb.append('\n'); break;
+                    case 'r': sb.append('\r'); break;
+                    case 't': sb.append('\t'); break;
+                    default: sb.append(n); break;
+                }
+                i++;
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 
     /**
