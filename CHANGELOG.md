@@ -1,3 +1,9 @@
+## [1.3.0](https://github.com/debakarr/morphe-patches/compare/v1.2.0...v1.3.0) (2026-09-29)
+
+### ✨ New Features
+
+* **flipkart:** sort ATLAS feed rows and remove all ad items ([cac6ffe](https://github.com/debakarr/morphe-patches/commit/cac6ffe16d02f8c89ed127348089f975a2814d78))
+
 ## [1.2.0](https://github.com/debakarr/morphe-patches/compare/v1.1.4...v1.2.0) (2026-09-29)
 
 ### ✨ New Features
