@@ -1,3 +1,9 @@
+## [1.1.3](https://github.com/debakarr/morphe-patches/compare/v1.1.2...v1.1.3) (2026-09-29)
+
+### 🐛 Bug Fixes
+
+* **flipkart:** hook every NetworkCaller callback and the mapi raw-response converter ([f62db21](https://github.com/debakarr/morphe-patches/commit/f62db214c8a618d9ebc663e47a3b1b170a056970))
+
 ## [1.1.2](https://github.com/debakarr/morphe-patches/compare/v1.1.1...v1.1.2) (2026-09-13)
 
 ### 🐛 Bug Fixes
