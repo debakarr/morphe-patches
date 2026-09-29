@@ -44,10 +44,10 @@ val flipkartSortByRatingsCountPatch = bytecodePatch(
             addInstructions(
                 implementation!!.instructions.lastIndex,
                 """
-                    iget-object v0, p1, Lcom/flipkart/mapi/model/o;.m:Ljava/lang/String;
+                    iget-object v0, p1, Lcom/flipkart/mapi/model/o;->m:Ljava/lang/String;
                     invoke-static {v0}, $HELPER->processFlipkartSearchResponse(Ljava/lang/String;)Ljava/lang/String;
                     move-result-object v0
-                    iput-object v0, p1, Lcom/flipkart/mapi/model/o;.m:Ljava/lang/String;
+                    iput-object v0, p1, Lcom/flipkart/mapi/model/o;->m:Ljava/lang/String;
                 """.trimIndent(),
             )
         }
