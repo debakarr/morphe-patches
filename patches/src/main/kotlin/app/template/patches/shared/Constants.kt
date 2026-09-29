@@ -35,4 +35,20 @@ object Constants {
             AppTarget(version = "9.13", versionCode = 3220300),
         )
     )
+
+    val MYNTRA_COMPATIBILITY = Compatibility(
+        name = "Myntra",
+        packageName = "com.myntra.android",
+        appIconColor = 0xFF3F6C,
+        apkFileType = ApkFileType.XAPK,
+        targets = listOf(AppTarget(version = "4.2609.30", versionCode = 80110582))
+    )
+
+    val MEESHO_COMPATIBILITY = Compatibility(
+        name = "Meesho",
+        packageName = "com.meesho.supply",
+        appIconColor = 0x9F2089,
+        apkFileType = ApkFileType.XAPK,
+        targets = listOf(AppTarget(version = "29.5", versionCode = 868))
+    )
 }

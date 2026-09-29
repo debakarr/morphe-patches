@@ -10,7 +10,8 @@ private const val HELPER = "Lapp/template/extension/extension/SortByRatingsHelpe
 @Suppress("unused")
 val amazonSortByRatingsCountPatch = bytecodePatch(
     name = "Sort by number of ratings",
-    description = "Adds 'Sort: Most rated' and 'Remove ads' buttons on Amazon search/listing pages.",
+    description = "Adds 'Sort: Most rated' and 'Hide ads' buttons on Amazon search pages; " +
+        "both stay on for new results and later searches.",
     default = false,
 ) {
     compatibleWith(AMAZON_SHOPPING_COMPATIBILITY, AMAZON_IN_COMPATIBILITY)
