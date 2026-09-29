@@ -16,7 +16,7 @@ Morphe patch source for **sorting search results by number of ratings** (descend
 |---|---|
 | Approach | Client-side DOM reorder via `evaluateJavascript` |
 | Scope | Search results pages |
-| Compatibility | `com.amazon.mShop.android.shopping` v32.13.2.100 · `in.amazon.mShop.android.shopping` v32.16.2.300 |
+| Compatibility | `com.amazon.mShop.android.shopping` v32.13.2.100 · `in.amazon.mShop.android.shopping` v32.18.0.300 / v32.16.2.300 |
 
 On search/listing pages two floating buttons appear:
 
