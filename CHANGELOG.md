@@ -1,3 +1,9 @@
+## [1.4.0](https://github.com/debakarr/morphe-patches/compare/v1.3.0...v1.4.0) (2026-09-29)
+
+### ✨ New Features
+
+* **amazon:** support Amazon India 32.18.0.300 ([13a4c8a](https://github.com/debakarr/morphe-patches/commit/13a4c8a58a4622e385e51083b6843c03f58acf7d))
+
 ## [1.3.0](https://github.com/debakarr/morphe-patches/compare/v1.2.0...v1.3.0) (2026-09-29)
 
 ### ✨ New Features
