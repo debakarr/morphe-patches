@@ -1,3 +1,9 @@
+## [1.1.4](https://github.com/debakarr/morphe-patches/compare/v1.1.3...v1.1.4) (2026-09-29)
+
+### 🐛 Bug Fixes
+
+* **flipkart:** correct smali field references in converter hook (-> not .) ([4686651](https://github.com/debakarr/morphe-patches/commit/4686651889adde80914acab9697e4309de463bc5))
+
 ## [1.1.3](https://github.com/debakarr/morphe-patches/compare/v1.1.2...v1.1.3) (2026-09-29)
 
 ### 🐛 Bug Fixes
