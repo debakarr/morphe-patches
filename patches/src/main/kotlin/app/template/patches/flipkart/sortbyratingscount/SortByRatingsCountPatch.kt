@@ -33,6 +33,20 @@ val flipkartSortByRatingsCountPatch = bytecodePatch(
         NetworkCallerResponseCacheFingerprint.method.addInstructions(0, sortCallback)
         NetworkCallerAsyncResponseCacheFingerprint.method.addInstructions(0, sortCallback)
 
+        // Generic mapi Gson converter: wrap the response reader so every mapi
+        // page (search, category, browse, PDP, ...) gets its product maps
+        // sorted and ad entries removed before Gson builds the models.
+        //
+        // p1 = okhttp3 ResponseBody, p2 = java.io.Reader.  Replacing p2 at the
+        // top of the method hands Gson the rewritten JSON.
+        MapiGsonConvertFingerprint.method.addInstructions(
+            0,
+            """
+                invoke-static {p2}, $HELPER->processResponseReader(Ljava/io/Reader;)Ljava/io/Reader;
+                move-result-object p2
+            """.trimIndent(),
+        )
+
         // Belt-and-braces: the raw response string is attached to
         // `mapi.model.o.m` in exactly one place, and that object is what the
         // NetworkCaller resolver reads.  Sort the field there as well so any

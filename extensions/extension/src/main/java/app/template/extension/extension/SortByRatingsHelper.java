@@ -38,6 +38,8 @@ public final class SortByRatingsHelper {
 
     private static final String TAG = "MorpheSort";
     private static int sNetworkCalls = 0;
+    private static int sDiag = 0;
+    private static final int MAX_DIAG = 40;
 
     // Mirror of the ad-card signals used by AmazonHelper so sponsored
     // cards stay where the site put them.
@@ -50,6 +52,7 @@ public final class SortByRatingsHelper {
     private static final String SORT_RATINGS_JS =
         "function(cfg){"
         + "var BTN_ID='morphe-sort-ratings';"
+        + "var ADS_BTN_ID='morphe-hide-ads';"
         + "var CARD_SEL=cfg.site==='flipkart'"
         + "? 'div[data-id],div._1AtVbE,div._13oc-S,div._2kHMtA'"
         + ": '[data-component-type=\"s-search-result\"],.s-result-item[data-asin]';"
@@ -139,6 +142,32 @@ public final class SortByRatingsHelper {
         + "var cards=collect();"
         + "var parent=currentParent(cards);"
         + "if(parent&&parent.__morpheOrig){parent.__morpheOrig.forEach(function(el){parent.appendChild(el);});}}"
+        + "function hideAds(){"
+        + "var n=0;var nodes=document.querySelectorAll(CARD_SEL);"
+        + "for(var i=0;i<nodes.length;i++){var el=nodes[i];"
+        + "if(!el.parentNode)continue;"
+        + "if(el.getAttribute('data-morphe-ad')==='1')continue;"
+        + "if(isSponsored(el)){el.setAttribute('data-morphe-ad','1');el.style.display='none';n++;}}"
+        + "return n;}"
+        + "function showAds(){"
+        + "var nodes=document.querySelectorAll('[data-morphe-ad]');"
+        + "for(var i=0;i<nodes.length;i++){nodes[i].style.display='';nodes[i].removeAttribute('data-morphe-ad');}}"
+        + "function ensureAdsBtn(){"
+        + "var b=document.getElementById(ADS_BTN_ID);"
+        + "if(b)return b;"
+        + "b=document.createElement('button');b.id=ADS_BTN_ID;b.type='button';"
+        + "b.textContent='Remove ads';"
+        + "b.setAttribute('data-active','0');"
+        + "b.style.cssText='position:fixed;right:12px;bottom:132px;z-index:2147483647;"
+        + "padding:10px 14px;border-radius:20px;border:1px solid #888;background:#232f3e;"
+        + "color:#fff;font-size:13px;font-weight:bold;box-shadow:0 2px 8px rgba(0,0,0,.4);cursor:pointer';"
+        + "b.onclick=function(){"
+        + "var on=b.getAttribute('data-active')==='1';"
+        + "if(on){showAds();b.setAttribute('data-active','0');b.textContent='Remove ads';}"
+        + "else{var n=hideAds();b.setAttribute('data-active','1');"
+        + "b.textContent=n>0?'Ads removed \\u2713 ('+n+')':'No ads found';}};"
+        + "document.documentElement.appendChild(b);"
+        + "return b;}"
         + "function ensureBtn(){"
         + "var b=document.getElementById(BTN_ID);"
         + "if(b)return b;"
@@ -156,14 +185,15 @@ public final class SortByRatingsHelper {
         + "document.documentElement.appendChild(b);"
         + "return b;}"
         + "if(!collect().length)return;"
-        + "ensureBtn();"
+        + "ensureBtn();ensureAdsBtn();"
         + "if(!window.__morpheSortObs){"
         + "window.__morpheSortObs=true;"
-        + "var t=null;"
+        + "var t=null;var t2=null;"
         + "new MutationObserver(function(){"
         + "var b=document.getElementById(BTN_ID);"
-        + "if(!b||b.getAttribute('data-active')!=='1')return;"
-        + "clearTimeout(t);t=setTimeout(applySort,600);"
+        + "if(b&&b.getAttribute('data-active')==='1'){clearTimeout(t);t=setTimeout(applySort,600);}"
+        + "var ab=document.getElementById(ADS_BTN_ID);"
+        + "if(ab&&ab.getAttribute('data-active')==='1'){clearTimeout(t2);t2=setTimeout(hideAds,400);}"
         + "}).observe(document.body||document.documentElement,{childList:true,subtree:true});}"
         + "}";
 
@@ -222,125 +252,227 @@ public final class SortByRatingsHelper {
      * @return sorted JSON string, or the original if sorting is not applicable
      */
     public static String processFlipkartSearchResponse(String json) {
-        if (json == null || json.length() < 10) return json;
-        int call = ++sNetworkCalls;
+        return processFlipkartResponseJson(json);
+    }
 
-        // Cheap guard: this runs for every mapi response now, so avoid a full
-        // JSON parse for the vast majority that carry no product map.
+    /**
+     * Reads a mapi response body in full, re-writes the product maps it
+     * contains (sort by rating count, drop ads) and hands Gson a reader over
+     * the modified JSON.
+     *
+     * <p>Hooked on the generic mapi Gson converter, so this covers every page
+     * served by mapi: search, category, browse, product page, etc.
+     */
+    public static java.io.Reader processResponseReader(java.io.Reader reader) {
+        if (reader == null) return null;
+        try {
+            StringBuilder sb = new StringBuilder(16384);
+            char[] buf = new char[8192];
+            int n;
+            while ((n = reader.read(buf)) >= 0) {
+                sb.append(buf, 0, n);
+            }
+            reader.close();
+            String json = sb.toString();
+            String processed = processFlipkartResponseJson(json);
+            return new java.io.StringReader(processed);
+        } catch (Exception e) {
+            Log.d(TAG, "reader error: " + e);
+            return reader;
+        }
+    }
+
+    /**
+     * Rewrites every {@code "product"} map found anywhere in the JSON:
+     * entries are sorted by rating count descending and ad/sponsored entries
+     * are dropped.  Everything else is preserved byte-for-byte.
+     */
+    public static String processFlipkartResponseJson(String json) {
+        if (json == null || json.length() < 10) return json;
+
         if (json.indexOf("\"product\"") < 0) {
-            if (call <= 60) {
+            if (sDiag < MAX_DIAG && (json.contains("ratingCount")
+                || json.contains("\"ads\"") || json.contains("trackingDataV2"))) {
+                sDiag++;
                 String keys;
                 try {
                     keys = keyList(new JSONObject(json));
                 } catch (Exception e) {
                     keys = "(unparsable)";
                 }
-                Log.d(TAG, "call#" + call + " len=" + json.length() + " keys=" + keys
+                Log.d(TAG, "diag#" + sDiag + " len=" + json.length() + " keys=" + keys
                     + " hasRatingCount=" + json.contains("ratingCount")
-                    + " hasTracking=" + json.contains("trackingDataV2"));
-                if (json.length() > 2000 && call <= 12) {
-                    Log.d(TAG, "call#" + call + " head="
-                        + json.substring(0, Math.min(3000, json.length())));
-                }
+                    + " hasTracking=" + json.contains("trackingDataV2")
+                    + " hasAds=" + json.contains("\"ads\""));
             }
             return json;
         }
 
-        try {
-            JSONObject root = new JSONObject(json);
+        int call = ++sNetworkCalls;
+        List<int[]> spans = findAllNamedObjectSpans(json, "product", 0, json.length());
+        if (spans.isEmpty()) {
+            if (call <= 20) {
+                Log.d(TAG, "call#" + call + " has product key but no object span");
+            }
+            return json;
+        }
 
-            // Flipkart API response: { "search": {...}, "product": { "PID": {...}, ... }, ... }
-            // The "product" key holds a map of productId -> productObject.
-            JSONObject productMap = root.optJSONObject("product");
-            if (productMap == null) {
-                if (call <= 20) {
-                    Log.d(TAG, "call#" + call + " len=" + json.length()
-                        + " keys=" + keyList(root) + " (no product map)");
+        int maps = 0;
+        int removed = 0;
+        // Process back-to-front so edits to a later span cannot invalidate the
+        // offsets of the earlier ones.
+        for (int i = spans.size() - 1; i >= 0; i--) {
+            int[] span = spans.get(i);
+            MapResult r = processProductMapObject(json, span, call);
+            removed += r.removed;
+            if (r.changed) {
+                json = json.substring(0, span[0]) + r.text + json.substring(span[1]);
+                maps++;
+            }
+        }
+
+        if (maps > 0) {
+            Log.d(TAG, "call#" + call + " REWROTE maps=" + maps
+                + " spans=" + spans.size() + " adsRemoved=" + removed);
+        }
+        return json;
+    }
+
+    /** Result of rewriting a single product map object. */
+    private static final class MapResult {
+        final String text;
+        final boolean changed;
+        final int removed;
+
+        MapResult(String text, boolean changed, int removed) {
+            this.text = text;
+            this.changed = changed;
+            this.removed = removed;
+        }
+    }
+
+    private static MapResult processProductMapObject(String json, int[] span, int call) {
+        int open = span[0];
+        int close = span[1];
+        String original = json.substring(open, close);
+
+        List<int[]> rawEntries = splitTopLevelEntries(json, open + 1, close - 1);
+        if (rawEntries.size() < 2) return new MapResult(original, false, 0);
+
+        List<RawEntry> entries = new ArrayList<>(rawEntries.size());
+        int withRating = 0;
+        int adCount = 0;
+        for (int[] bounds : rawEntries) {
+            String entry = json.substring(bounds[0], bounds[1]).trim();
+            int colon = entryColon(entry);
+            JSONObject value = null;
+            if (colon >= 0) {
+                String valueText = entry.substring(colon + 1).trim();
+                try {
+                    value = new JSONObject(valueText);
+                } catch (Exception ignored) {
+                    // not an object / not parseable — keep it
                 }
-                return json;
             }
-
-            int total = productMap.length();
-            if (total < 2) return json;
-
-            // Locate the "product" object span in the RAW string. We must do
-            // string-level surgery here: org.json.JSONObject is HashMap-backed
-            // and does NOT preserve insertion order, so rebuilding via
-            // JSONObject.toString() would emit products in hash order and the
-            // JS side would render them unsorted.
-            int[] span = findNamedObjectSpan(json, "product");
-            if (span == null) {
-                Log.d(TAG, "call#" + call + " product map with " + total
-                    + " entries but span not found");
-                return json;
-            }
-            List<int[]> rawEntries = splitTopLevelEntries(json, span[0] + 1, span[1] - 1);
-            if (rawEntries.size() < 2) return json;
-
-            // Score each raw entry by rating count (JSONObject used for
-            // READING only — order comes from the raw string).
-            List<RawEntry> entries = new ArrayList<>(rawEntries.size());
-            int withRating = 0;
-            for (int[] bounds : rawEntries) {
-                String entry = json.substring(bounds[0], bounds[1]).trim();
-                String key = entryKey(entry);
-                int count = -1;
-                if (key != null) {
-                    JSONObject product = productMap.optJSONObject(key);
-                    if (product != null) {
-                        count = extractRatingCount(product);
-                        if (count > 0) withRating++;
-                    }
+            int count = value != null ? extractRatingCount(value) : -1;
+            boolean ad = value != null && isAdProduct(value, entry);
+            if (count > 0) withRating++;
+            if (ad) {
+                adCount++;
+                if (sDiag < MAX_DIAG) {
+                    sDiag++;
+                    Log.d(TAG, "ad#" + sDiag + " entry="
+                        + entry.substring(0, Math.min(600, entry.length())));
                 }
-                entries.add(new RawEntry(entry, count));
+                continue;
             }
-            if (withRating < 2) {
-                Log.d(TAG, "call#" + call + " product entries=" + total
-                    + " withRating=" + withRating + " (nothing to sort)");
-                return json;
+            if (sDiag < MAX_DIAG && withRating == 0 && adCount == 0
+                && entries.isEmpty() && call <= 30) {
+                sDiag++;
+                Log.d(TAG, "sample#" + sDiag + " entry="
+                    + entry.substring(0, Math.min(1200, entry.length())));
             }
+            entries.add(new RawEntry(entry, count));
+        }
 
-            String before = topKeys(entries, 3);
-
-            // Stable sort descending by rating count.
+        boolean sort = withRating >= 2;
+        if (sort) {
             Collections.sort(entries, new Comparator<RawEntry>() {
                 @Override
                 public int compare(RawEntry a, RawEntry b) {
                     return Integer.compare(b.count, a.count);
                 }
             });
-
-            StringBuilder inner = new StringBuilder();
-            for (int i = 0; i < entries.size(); i++) {
-                if (i > 0) inner.append(',');
-                inner.append(entries.get(i).raw);
-            }
-            String result = json.substring(0, span[0] + 1) + inner + json.substring(span[1] - 1);
-
-            // Sanity: result must still be valid JSON.
-            try {
-                new JSONObject(result);
-            } catch (JSONException je) {
-                Log.d(TAG, "call#" + call + " rebuilt JSON invalid, keeping original");
-                return json;
-            }
-
-            Log.d(TAG, "call#" + call + " SORTED entries=" + entries.size()
-                + " withRating=" + withRating + " before=" + before
-                + " after=" + topKeys(entries, 3));
-            JSONObject search = root.optJSONObject("search");
-            if (search != null && call <= 20) {
-                Log.d(TAG, "call#" + call + " search keys=" + keyList(search));
-            }
-            return result;
-        } catch (JSONException e) {
-            // Malformed JSON or structural change — return original
-            return json;
-        } catch (Exception e) {
-            // Unexpected error — never break the app
-            Log.d(TAG, "call#" + call + " error: " + e);
-            return json;
         }
+
+        if (entries.isEmpty()) {
+            // Never delete the whole map.
+            return new MapResult(original, false, 0);
+        }
+
+        StringBuilder inner = new StringBuilder();
+        for (int i = 0; i < entries.size(); i++) {
+            if (i > 0) inner.append(',');
+            inner.append(entries.get(i).raw);
+        }
+        String text = "{" + inner + "}";
+        if (text.equals(original)) return new MapResult(original, false, adCount);
+        return new MapResult(text, true, adCount);
+    }
+
+    /**
+     * Heuristic ad detection for a product map entry.  Works on the entry text
+     * as well as the parsed value so it does not depend on the exact model.
+     */
+    private static boolean isAdProduct(JSONObject value, String rawEntry) {
+        // Direct boolean flags / id fields on the wrapper or value.
+        if (value.optBoolean("isAd", false)
+            || value.optBoolean("ad", false)
+            || value.optBoolean("sponsored", false)
+            || value.optBoolean("isSponsored", false)
+            || value.has("adId")
+            || value.has("adData")
+            || value.has("adInfo")
+            || value.has("adBadge")) {
+            return true;
+        }
+        JSONObject v = value.optJSONObject("value");
+        if (v != null && v != value) {
+            if (v.optBoolean("isAd", false)
+                || v.optBoolean("ad", false)
+                || v.optBoolean("sponsored", false)
+                || v.optBoolean("isSponsored", false)
+                || v.has("adId")
+                || v.has("adData")
+                || v.has("adInfo")
+                || v.has("adBadge")) {
+                return true;
+            }
+            JSONObject tracking = v.optJSONObject("trackingDataV2");
+            if (tracking != null) {
+                String finding = tracking.optString("findingMethod", "");
+                if (finding.contains("ad") || finding.contains("Ad")
+                    || finding.contains("sponsor") || finding.contains("Sponsor")) {
+                    return true;
+                }
+            }
+        }
+        // Raw text fallback: explicit ad markers anywhere in the entry.
+        return rawEntry.contains("\"isAd\":true")
+            || rawEntry.contains("\"isSponsored\":true")
+            || rawEntry.contains("\"sponsored\":true")
+            || rawEntry.contains("\"adId\"");
+    }
+
+    /** Finds the key/value colon of an object entry, outside of strings. */
+    private static int entryColon(String entry) {
+        int i = skipWs(entry, 0);
+        if (i >= entry.length() || entry.charAt(i) != '"') return -1;
+        int keyEnd = skipString(entry, i);
+        if (keyEnd < 0) return -1;
+        int j = skipWs(entry, keyEnd);
+        if (j >= entry.length() || entry.charAt(j) != ':') return -1;
+        return j;
     }
 
     private static String keyList(JSONObject obj) {
@@ -472,6 +604,64 @@ public final class SortByRatingsHelper {
         }
     }
 
+    /**
+     * Finds the spans of every object value stored under {@code name}, at any
+     * depth.  Does not descend into a matched object (a nested product map
+     * inside another product map is not something Flipkart emits, and nesting
+     * would make in-place offsets invalid).
+     */
+    private static List<int[]> findAllNamedObjectSpans(String s, String name, int from, int to) {
+        List<int[]> out = new ArrayList<>();
+        collectSpans(s, name, from, Math.min(to, s.length()), out, 0);
+        return out;
+    }
+
+    private static void collectSpans(String s, String name, int from, int to,
+                                     List<int[]> out, int depth) {
+        if (depth > 12) return;
+        int i = skipWs(s, from);
+        while (i < to) {
+            char c = s.charAt(i);
+            if (c == '"') {
+                int keyEnd = skipString(s, i);
+                if (keyEnd < 0) return;
+                String key = unescape(s.substring(i + 1, keyEnd - 1));
+                int j = skipWs(s, keyEnd);
+                if (j >= to || s.charAt(j) != ':') {
+                    i = keyEnd;
+                    continue;
+                }
+                j = skipWs(s, j + 1);
+                if (j >= to) return;
+                char v = s.charAt(j);
+                if (v == '{' || v == '[') {
+                    int end = skipValue(s, j);
+                    if (end < 0 || end > to) return;
+                    if (name.equals(key) && v == '{') {
+                        out.add(new int[]{j, end});
+                        // do not descend into a matched map
+                    } else {
+                        collectSpans(s, name, j + 1, end - 1, out, depth + 1);
+                    }
+                    i = end;
+                    continue;
+                }
+                int end = skipValue(s, j);
+                if (end < 0 || end > to) return;
+                i = end;
+                continue;
+            }
+            if (c == '{' || c == '[') {
+                int end = skipValue(s, i);
+                if (end < 0 || end > to) return;
+                collectSpans(s, name, i + 1, end - 1, out, depth + 1);
+                i = end;
+                continue;
+            }
+            i++;
+        }
+    }
+
     /** Splits [from, to) into top-level comma-separated entry spans. */
     private static List<int[]> splitTopLevelEntries(String s, int from, int to) {
         List<int[]> out = new ArrayList<>();
@@ -574,9 +764,35 @@ public final class SortByRatingsHelper {
                     if (count > 0) return count;
                 }
             }
+
+            // Path 4: discovery ProductVInfo value.rating.count
+            JSONObject rating = value.optJSONObject("rating");
+            if (rating != null) {
+                count = rating.optInt("count", 0);
+                if (count > 0) return count;
+                count = rating.optInt("totalRatingCount", 0);
+                if (count > 0) return count;
+            }
+
+            // Path 5: discovery ProductVInfo value.count
+            count = value.optInt("count", 0);
+            if (count > 0) return count;
+
+            // Path 6: value.ratingCount
+            count = value.optInt("ratingCount", 0);
+            if (count > 0) return count;
         }
 
-        // Path 4: scan for any "ratingCount" key (defensive fallback)
+        // Path 7: direct rating.count / count on the wrapper
+        JSONObject rating = product.optJSONObject("rating");
+        if (rating != null) {
+            count = rating.optInt("count", 0);
+            if (count > 0) return count;
+        }
+        count = product.optInt("count", 0);
+        if (count > 0) return count;
+
+        // Path 8: scan for any "ratingCount" key (defensive fallback)
         count = findIntField(product, "ratingCount");
         return count;
     }
