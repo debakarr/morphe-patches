@@ -20,6 +20,8 @@ final class MyntraListing {
 
     private MyntraListing() {}
 
+    private static final int SORT_PAGE_SIZE = 60;
+
     private static final Set<String> LIST_KEYS =
         new HashSet<>(Arrays.asList("components", "products"));
 
@@ -82,11 +84,23 @@ final class MyntraListing {
         if (json == null || json.length() < 64 || json.charAt(0) != '{') return json;
         Diag.dump("myntra", json);
         if (json.indexOf("\"PRODUCT_TILE") < 0 && json.indexOf("\"productId\"") < 0) return json;
+        SortState.noteListing();
+        if (!SortState.sortOn() && !SortState.hideAds()) return json;
         try {
             JSONObject root = new JSONObject(json);
             ListingSorter.Stats stats = new ListingSorter.Stats();
             ListingSorter.rewrite(root, LIST_KEYS, RULES, stats, 0);
-            if (!stats.changed()) return json;
+            // The page echoes its pagination context back on the next fetch:
+            // ask for bigger pages while sorting so one sort covers more items.
+            boolean bigger = false;
+            JSONObject pagination = root.optJSONObject("paginationContext");
+            if (pagination != null && SortState.sortOn()
+                && pagination.optInt("pageSize", 0) > 0
+                && pagination.optInt("pageSize", 0) < SORT_PAGE_SIZE) {
+                pagination.put("pageSize", SORT_PAGE_SIZE);
+                bigger = true;
+            }
+            if (!stats.changed() && !bigger) return json;
             SortByRatingsHelper.log("myntra " + stats);
             return root.toString();
         } catch (Throwable t) {

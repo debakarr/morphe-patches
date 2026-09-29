@@ -94,6 +94,8 @@ final class ListingSorter {
 
     /** Returns the rewritten list, or null when nothing changed. */
     static JSONArray rewriteList(JSONArray arr, Rules rules, Stats stats) {
+        final boolean dropAds = SortState.hideAds();
+        final boolean doSort = SortState.sortOn();
         List<Slot> products = new ArrayList<>();
         boolean[] isProductSlot = new boolean[arr.length()];
         int ads = 0;
@@ -101,11 +103,13 @@ final class ListingSorter {
         for (int i = 0; i < arr.length(); i++) {
             JSONObject item = arr.optJSONObject(i);
             if (item == null || !rules.isProduct(item)) continue;
-            isProductSlot[i] = true;
             if (rules.isAd(item)) {
                 ads++;
+                // Ads are either dropped, or kept fixed in their slot.
+                if (dropAds) isProductSlot[i] = true;
                 continue;
             }
+            isProductSlot[i] = true;
             int count = rules.ratingCount(item);
             if (count > 0) rated++;
             products.add(new Slot(item, count, i));
@@ -114,7 +118,7 @@ final class ListingSorter {
         stats.lists++;
 
         List<Slot> sorted = new ArrayList<>(products);
-        if (rated >= 2) {
+        if (doSort && rated >= 2) {
             // Collections.sort is stable: ties keep the server's order.
             Collections.sort(sorted, (a, b) -> Integer.compare(b.count, a.count));
         }
@@ -125,10 +129,11 @@ final class ListingSorter {
                 break;
             }
         }
-        if (!reordered && ads == 0) return null;
+        boolean removesAds = dropAds && ads > 0;
+        if (!reordered && !removesAds) return null;
 
         // Fill product slots in order with the sorted products; slots freed
-        // by removed ads collapse, non-product items stay where they were.
+        // by removed ads collapse, other items stay where they were.
         JSONArray out = new JSONArray();
         int next = 0;
         for (int i = 0; i < arr.length(); i++) {
@@ -139,7 +144,7 @@ final class ListingSorter {
             }
         }
         if (reordered) stats.sorted += sorted.size();
-        stats.adsRemoved += ads;
+        if (removesAds) stats.adsRemoved += ads;
         return out;
     }
 

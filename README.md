@@ -61,7 +61,9 @@ The patch wraps the response reader inside the base mapi Gson converter, parses 
 
 Products in `catalogs[]` / `products[]` are sorted by `catalog_reviews_summary.rating_count`; ad catalogs (`ad.active`) are removed. Banners and widgets in the same list keep their position.
 
-> **Infinite scroll (Flipkart, Myntra, Meesho):** these patches rewrite each page as the server sends it, so every page is sorted, but a well-rated item on page 3 cannot move above page 1. Amazon's WebView patch re-sorts everything loaded so far.
+**Buttons (Flipkart, Myntra, Meesho):** on listing screens two floating buttons appear, **Sort: Most rated** and **Hide ads**. Both start off and are remembered. They control how every page the app loads *after* you tap is rewritten; items already on screen keep their order, so turn them on before searching. With only "Most rated" on, sponsored items stay in their slots.
+
+> **Infinite scroll (Flipkart, Myntra, Meesho):** each page is sorted as it arrives, so a well-rated item on page 3 cannot move above page 1. To make each sort cover more, Meesho requests 100 items per page and Myntra 60 while "Most rated" is on. Flipkart's next-page cursor is an opaque token, so its page size can't be changed. Amazon's WebView patch re-sorts everything loaded so far.
 
 ## Add to Morphe
 

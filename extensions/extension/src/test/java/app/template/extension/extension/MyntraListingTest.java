@@ -6,11 +6,17 @@ import static org.junit.Assert.assertSame;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.nio.charset.StandardCharsets;
 
 public class MyntraListingTest {
+
+    @Before
+    public void bothTogglesOn() {
+        SortState.forTest(true, true);
+    }
 
     private static JSONObject tile(int id, String count, boolean ad) throws Exception {
         JSONObject data = new JSONObject().put("productId", id)

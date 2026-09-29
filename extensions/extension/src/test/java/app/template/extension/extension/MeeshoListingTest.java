@@ -5,9 +5,15 @@ import static org.junit.Assert.assertSame;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.junit.Before;
 import org.junit.Test;
 
 public class MeeshoListingTest {
+
+    @Before
+    public void bothTogglesOn() {
+        SortState.forTest(true, true);
+    }
 
     private static JSONObject catalog(int id, int ratings, boolean ad) throws Exception {
         JSONObject c = new JSONObject()
@@ -36,6 +42,38 @@ public class MeeshoListingTest {
 
         org.junit.Assert.assertArrayEquals(new int[]{3, 4, 1}, ids(out.getJSONArray("catalogs")));
         assertEquals("abc", out.getString("cursor"));
+    }
+
+    @Test
+    public void everythingIsUntouchedWhenBothTogglesAreOff() throws Exception {
+        SortState.forTest(false, false);
+        String json = new JSONObject().put("catalogs", new JSONArray()
+            .put(catalog(1, 10, false)).put(catalog(2, 500, true)).put(catalog(3, 900, false))).toString();
+        assertSame(json, MeeshoListing.process(json));
+    }
+
+    @Test
+    public void sortOnlyKeepsAdsInTheirSlot() throws Exception {
+        SortState.forTest(true, false);
+        JSONObject root = new JSONObject().put("catalogs", new JSONArray()
+            .put(catalog(1, 10, false)).put(catalog(2, 500, true))
+            .put(catalog(3, 900, false)).put(catalog(4, 50, false)));
+
+        JSONArray out = new JSONObject(MeeshoListing.process(root.toString())).getJSONArray("catalogs");
+
+        // organic sorted (3, 4, 1) into slots 0,2,3; the ad (2) stays at index 1
+        org.junit.Assert.assertArrayEquals(new int[]{3, 2, 4, 1}, ids(out));
+    }
+
+    @Test
+    public void hideAdsOnlyKeepsServerOrder() throws Exception {
+        SortState.forTest(false, true);
+        JSONObject root = new JSONObject().put("catalogs", new JSONArray()
+            .put(catalog(1, 10, false)).put(catalog(2, 500, true)).put(catalog(3, 900, false)));
+
+        JSONArray out = new JSONObject(MeeshoListing.process(root.toString())).getJSONArray("catalogs");
+
+        org.junit.Assert.assertArrayEquals(new int[]{1, 3}, ids(out));
     }
 
     @Test

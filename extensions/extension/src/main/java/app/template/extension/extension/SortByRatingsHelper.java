@@ -35,6 +35,7 @@ public final class SortByRatingsHelper {
     private SortByRatingsHelper() {}
 
     private static final String TAG = "MorpheSort";
+    private static final int MEESHO_SORT_PAGE_SIZE = 100;
     private static int sNetworkCalls = 0;
     private static int sAdsRemoved = 0;
 
@@ -59,6 +60,15 @@ public final class SortByRatingsHelper {
     /** Meesho: rewrites a Moshi-bound response body (hooked in the Retrofit converter). */
     public static String processMeeshoResponse(String json) {
         return MeeshoListing.process(json);
+    }
+
+    /**
+     * Meesho: page size for listing requests. While "Most rated" is on, ask
+     * for bigger pages so one sort covers many more items (the server pages
+     * by cursor and honours large limits).
+     */
+    public static int meeshoPageLimit(int limit) {
+        return SortState.sortOn() ? Math.max(limit, MEESHO_SORT_PAGE_SIZE) : limit;
     }
 
     /** Myntra: rewrites a response body before it is handed to React Native. */
@@ -153,9 +163,13 @@ public final class SortByRatingsHelper {
         // (RESPONSE.slots[].widget.data.dlsData.{horizontalListData_0,gridData_0}.value),
         // each card carrying ratingData_0.reviewText ("| 4.7K+") and an ad
         // badge in tagData_0 ("AD" / "Sponsored").
-        if ((json.indexOf("\"horizontalListData_0\"") >= 0
+        boolean atlas = (json.indexOf("\"horizontalListData_0\"") >= 0
             || json.indexOf("\"gridData_0\"") >= 0)
-            && json.indexOf("\"ratingData_0\"") >= 0) {
+            && json.indexOf("\"ratingData_0\"") >= 0;
+        if (atlas) SortState.noteListing();
+        // Both toggles are off until the user taps the floating buttons.
+        if (!SortState.sortOn() && !SortState.hideAds()) return json;
+        if (atlas) {
             sAdsRemoved = 0;
             String rewritten = rewriteAtlasSlots(json);
             if (rewritten != null && rewritten != json) {
@@ -234,14 +248,14 @@ public final class SortByRatingsHelper {
             int count = value != null ? extractRatingCount(value) : -1;
             boolean ad = value != null && isAdProduct(value, entry);
             if (count > 0) withRating++;
-            if (ad) {
+            if (ad && SortState.hideAds()) {
                 adCount++;
                 continue;
             }
             entries.add(new RawEntry(entry, count));
         }
 
-        boolean sort = withRating >= 2;
+        boolean sort = withRating >= 2 && SortState.sortOn();
         if (sort) {
             Collections.sort(entries, new Comparator<RawEntry>() {
                 @Override
@@ -416,7 +430,7 @@ public final class SortByRatingsHelper {
         for (int i = 0; i < slots.length(); i++) {
             JSONObject slot = slots.optJSONObject(i);
             if (slot == null) continue;
-            if (isAdWidget(slot)) {
+            if (SortState.hideAds() && isAdWidget(slot)) {
                 removed = true;
                 continue;
             }
@@ -461,6 +475,10 @@ public final class SortByRatingsHelper {
         while (keys.hasNext()) {
             if (keys.next().toLowerCase().contains("pla_ads")) return true;
         }
+        // Product grids mix organic and sponsored cards (handled per card);
+        // any other widget wearing an AD / Sponsored label is an ad as a whole.
+        if (dls.has("gridData_0")) return false;
+        if (hasAdLabel(dls, 0)) return true;
         JSONObject header = dls.optJSONObject("header-2-line-content-container_0");
         if (header == null) return false;
         JSONObject value = header.optJSONObject("value");
@@ -526,19 +544,33 @@ public final class SortByRatingsHelper {
         }
         if (all.size() < 2) return false;
 
-        List<AtlasCard> kept = new ArrayList<>();
+        final boolean dropAds = SortState.hideAds();
+        List<AtlasCard> organic = new ArrayList<>();
         for (AtlasCard card : all) {
-            if (!card.ad) kept.add(card);
+            if (!card.ad) organic.add(card);
         }
-        boolean adsRemoved = kept.size() != all.size();
-        if (adsRemoved) sAdsRemoved += all.size() - kept.size();
+        boolean adsRemoved = dropAds && organic.size() != all.size();
+        if (adsRemoved) sAdsRemoved += all.size() - organic.size();
 
-        Collections.sort(kept, new Comparator<AtlasCard>() {
-            @Override
-            public int compare(AtlasCard a, AtlasCard b) {
-                return Integer.compare(b.count, a.count);
+        if (SortState.sortOn()) {
+            Collections.sort(organic, new Comparator<AtlasCard>() {
+                @Override
+                public int compare(AtlasCard a, AtlasCard b) {
+                    return Integer.compare(b.count, a.count);
+                }
+            });
+        }
+
+        // Dropped ads disappear; kept ads stay fixed in their original slot.
+        List<AtlasCard> kept = new ArrayList<>();
+        if (dropAds) {
+            kept.addAll(organic);
+        } else {
+            int next = 0;
+            for (AtlasCard card : all) {
+                kept.add(card.ad ? card : organic.get(next++));
             }
-        });
+        }
 
         List<Object> after = new ArrayList<>();
         for (AtlasCard card : kept) after.add(card.item);

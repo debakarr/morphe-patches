@@ -49,6 +49,8 @@ final class MeeshoListing {
         if (json.indexOf("\"catalogs\"") < 0 && json.indexOf("\"products\"") < 0) return json;
         Diag.dump("meesho", json);
         if (json.indexOf("\"catalog_reviews_summary\"") < 0 && json.indexOf("\"ad\"") < 0) return json;
+        SortState.noteListing();
+        if (!SortState.sortOn() && !SortState.hideAds()) return json;
         try {
             JSONObject root = new JSONObject(json);
             ListingSorter.Stats stats = new ListingSorter.Stats();

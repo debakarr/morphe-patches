@@ -6,10 +6,16 @@ import static org.junit.Assert.assertTrue;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.junit.Before;
 import org.junit.Test;
 
 /** Flipkart 9.15 ATLAS search feed: gridData_0 rows, nested ratings, Sponsored labels. */
 public class FlipkartAtlasTest {
+
+    @Before
+    public void bothTogglesOn() {
+        SortState.forTest(true, true);
+    }
 
     private static final String GRID_VIEW = "ATLAS_PRODUCT_SUMMARY_GRID_ELECTRONICS";
 
@@ -68,6 +74,60 @@ public class FlipkartAtlasTest {
         assertEquals("a", productId(row1.optJSONObject(1)));
         assertEquals("f", productId(row2.optJSONObject(0)));
         assertEquals("d", productId(row2.optJSONObject(1)));
+    }
+
+    @Test
+    public void sortOnlyKeepsSponsoredCardsInPlace() throws Exception {
+        SortState.forTest(true, false);
+        String in = feed(
+            gridSlot(card("a", "| 10", false), card("s", "| 999", true)),
+            gridSlot(card("b", "| 500", false), card("c", "| 90", false)));
+
+        JSONArray slots = new JSONObject(SortByRatingsHelper.processFlipkartResponseJson(in))
+            .getJSONObject("RESPONSE").getJSONArray("slots");
+
+        JSONArray row1 = slots.optJSONObject(0).optJSONObject("widget").optJSONObject("data")
+            .optJSONObject("dlsData").optJSONObject("gridData_0").optJSONArray("value");
+        JSONArray row2 = slots.optJSONObject(1).optJSONObject("widget").optJSONObject("data")
+            .optJSONObject("dlsData").optJSONObject("gridData_0").optJSONArray("value");
+        // organic sorted: b(500) c(90) a(10); sponsored s stays in slot 1
+        assertEquals("b", productId(row1.optJSONObject(0)));
+        assertEquals("s", productId(row1.optJSONObject(1)));
+        assertEquals("c", productId(row2.optJSONObject(0)));
+        assertEquals("a", productId(row2.optJSONObject(1)));
+    }
+
+    private static JSONObject widgetWithAdLabel(String labelKey, String listKey) throws Exception {
+        JSONObject dls = new JSONObject()
+            .put(labelKey, new JSONObject().put("value", new JSONObject().put("text", "AD")));
+        if (listKey != null) dls.put(listKey, new JSONObject().put("value", new JSONArray()));
+        return new JSONObject().put("widget", new JSONObject().put("data",
+            new JSONObject().put("dlsData", dls)));
+    }
+
+    @Test
+    public void removesAnyNonGridWidgetLabelledAd() throws Exception {
+        String in = feed(
+            widgetWithAdLabel("label_1", null),
+            widgetWithAdLabel("label_2", "horizontalListData_0"),
+            gridSlot(card("a", "| 10", true), card("b", "| 20", false)));
+
+        JSONArray slots = new JSONObject(SortByRatingsHelper.processFlipkartResponseJson(in))
+            .getJSONObject("RESPONSE").getJSONArray("slots");
+
+        // both AD widgets are gone; the grid row survives with its organic card
+        assertEquals(1, slots.length());
+        JSONArray row = slots.optJSONObject(0).optJSONObject("widget").optJSONObject("data")
+            .optJSONObject("dlsData").optJSONObject("gridData_0").optJSONArray("value");
+        assertEquals(1, row.length());
+        assertEquals("b", productId(row.optJSONObject(0)));
+    }
+
+    @Test
+    public void untouchedWhenBothTogglesAreOff() throws Exception {
+        SortState.forTest(false, false);
+        String in = feed(gridSlot(card("a", "| 10", false), card("b", "| 500", true)));
+        assertSame(in, SortByRatingsHelper.processFlipkartResponseJson(in));
     }
 
     @Test

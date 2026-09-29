@@ -16,6 +16,15 @@ val meeshoSortByRatingsCountPatch = bytecodePatch(
     extendWith("extensions/extension.mpe")
 
     execute {
+        // Bigger pages while "Most rated" is on: limit (p5) goes through the helper.
+        CatalogsRequestBodyConstructorFingerprint.method.addInstructions(
+            0,
+            """
+                invoke-static/range {p5 .. p5}, $HELPER->meeshoPageLimit(I)I
+                move-result p5
+            """.trimIndent(),
+        )
+
         // p1 = ResponseBody. v0/v1 are free at the top of the method (it is
         // reassigned before any use). Read the body, rewrite it, and hand the
         // converter a fresh body with the same content type.

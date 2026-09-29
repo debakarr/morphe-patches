@@ -13,3 +13,17 @@ internal val MoshiResponseBodyConverterFingerprint = Fingerprint(
     returnType = "Ljava/lang/Object;",
     parameters = listOf("Lokhttp3/ResponseBody;"),
 )
+
+/**
+ * `CatalogsRequestBody(filter, searchSessionId, cursor, offset, limit, ...)`:
+ * the request model of every catalog / search listing call. `limit` is the
+ * page size, register p5.
+ */
+internal val CatalogsRequestBodyConstructorFingerprint = Fingerprint(
+    definingClass = "Lcom/meesho/discovery/catalog/api/model/CatalogsRequestBody;",
+    name = "<init>",
+    custom = { method, _ ->
+        method.parameterTypes.size == 10 &&
+            method.parameterTypes[3] == "I" && method.parameterTypes[4] == "I"
+    },
+)
