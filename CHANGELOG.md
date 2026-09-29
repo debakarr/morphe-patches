@@ -1,3 +1,9 @@
+## [1.2.0](https://github.com/debakarr/morphe-patches/compare/v1.1.4...v1.2.0) (2026-09-29)
+
+### ✨ New Features
+
+* **flipkart:** intercept every mapi page and remove ads ([719b983](https://github.com/debakarr/morphe-patches/commit/719b98324b64da675e337171c2948f93ecdf66db))
+
 ## [1.1.4](https://github.com/debakarr/morphe-patches/compare/v1.1.3...v1.1.4) (2026-09-29)
 
 ### 🐛 Bug Fixes
