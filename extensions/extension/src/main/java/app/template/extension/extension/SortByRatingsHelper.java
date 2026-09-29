@@ -228,8 +228,20 @@ public final class SortByRatingsHelper {
         // Cheap guard: this runs for every mapi response now, so avoid a full
         // JSON parse for the vast majority that carry no product map.
         if (json.indexOf("\"product\"") < 0) {
-            if (call <= 20) {
-                Log.d(TAG, "call#" + call + " len=" + json.length() + " (no product key)");
+            if (call <= 60) {
+                String keys;
+                try {
+                    keys = keyList(new JSONObject(json));
+                } catch (Exception e) {
+                    keys = "(unparsable)";
+                }
+                Log.d(TAG, "call#" + call + " len=" + json.length() + " keys=" + keys
+                    + " hasRatingCount=" + json.contains("ratingCount")
+                    + " hasTracking=" + json.contains("trackingDataV2"));
+                if (json.length() > 2000 && call <= 12) {
+                    Log.d(TAG, "call#" + call + " head="
+                        + json.substring(0, Math.min(3000, json.length())));
+                }
             }
             return json;
         }
