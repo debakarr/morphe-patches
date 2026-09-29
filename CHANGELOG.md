@@ -1,3 +1,9 @@
+## [1.6.0](https://github.com/debakarr/morphe-patches/compare/v1.5.0...v1.6.0) (2026-09-29)
+
+### ✨ New Features
+
+* floating Sort/Hide-ads buttons for Flipkart, Myntra, Meesho ([de670a1](https://github.com/debakarr/morphe-patches/commit/de670a17a9fae227bb4fa506d7669f4b6a7e3dac))
+
 ## [1.5.0](https://github.com/debakarr/morphe-patches/compare/v1.4.0...v1.5.0) (2026-09-29)
 
 ### ✨ New Features
