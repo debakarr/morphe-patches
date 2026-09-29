@@ -3,6 +3,7 @@ package app.template.extension.extension;
 import android.util.Log;
 import android.webkit.WebView;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -38,8 +39,7 @@ public final class SortByRatingsHelper {
 
     private static final String TAG = "MorpheSort";
     private static int sNetworkCalls = 0;
-    private static int sDiag = 0;
-    private static final int MAX_DIAG = 40;
+    private static int sAdsRemoved = 0;
 
     // Mirror of the ad-card signals used by AmazonHelper so sponsored
     // cards stay where the site put them.
@@ -283,39 +283,40 @@ public final class SortByRatingsHelper {
     }
 
     /**
-     * Rewrites every {@code "product"} map found anywhere in the JSON:
-     * entries are sorted by rating count descending and ad/sponsored entries
-     * are dropped.  Everything else is preserved byte-for-byte.
+     * Rewrites every product listing found in the JSON:
+     * <ul>
+     *   <li>new ATLAS feed rows ({@code RESPONSE.slots}) — sorted by rating
+     *       count descending, ad cards removed, empty rows dropped;</li>
+     *   <li>legacy {@code "product"} maps — same treatment.</li>
+     * </ul>
+     * Everything else is preserved.
      */
     public static String processFlipkartResponseJson(String json) {
         if (json == null || json.length() < 10) return json;
 
-        if (json.indexOf("\"product\"") < 0) {
-            if (sDiag < MAX_DIAG && (json.contains("ratingCount")
-                || json.contains("\"ads\"") || json.contains("trackingDataV2"))) {
-                sDiag++;
-                String keys;
-                try {
-                    keys = keyList(new JSONObject(json));
-                } catch (Exception e) {
-                    keys = "(unparsable)";
-                }
-                Log.d(TAG, "diag#" + sDiag + " len=" + json.length() + " keys=" + keys
-                    + " hasRatingCount=" + json.contains("ratingCount")
-                    + " hasTracking=" + json.contains("trackingDataV2")
-                    + " hasAds=" + json.contains("\"ads\""));
+        // New ATLAS search/browse feed: products live in rows
+        // (RESPONSE.slots[].widget.data.dlsData.horizontalListData_0.value),
+        // each card carrying ratingData_0.reviewText ("| 4.7K+") and an ad
+        // badge in tagData_0 ("AD" / "Sponsored").
+        if (json.indexOf("\"horizontalListData_0\"") >= 0
+            && json.indexOf("\"ratingData_0\"") >= 0) {
+            sAdsRemoved = 0;
+            String rewritten = rewriteAtlasSlots(json);
+            if (rewritten != null && rewritten != json) {
+                Log.d(TAG, "ATLAS feed rewritten: removed " + sAdsRemoved
+                    + " ad card(s)");
+                json = rewritten;
             }
+        }
+
+        if (json.indexOf("\"product\"") < 0) {
             return json;
         }
 
+        // Legacy product map (RN NetworkCaller wrapper).
         int call = ++sNetworkCalls;
         List<int[]> spans = findAllNamedObjectSpans(json, "product", 0, json.length());
-        if (spans.isEmpty()) {
-            if (call <= 20) {
-                Log.d(TAG, "call#" + call + " has product key but no object span");
-            }
-            return json;
-        }
+        if (spans.isEmpty()) return json;
 
         int maps = 0;
         int removed = 0;
@@ -379,18 +380,7 @@ public final class SortByRatingsHelper {
             if (count > 0) withRating++;
             if (ad) {
                 adCount++;
-                if (sDiag < MAX_DIAG) {
-                    sDiag++;
-                    Log.d(TAG, "ad#" + sDiag + " entry="
-                        + entry.substring(0, Math.min(600, entry.length())));
-                }
                 continue;
-            }
-            if (sDiag < MAX_DIAG && withRating == 0 && adCount == 0
-                && entries.isEmpty() && call <= 30) {
-                sDiag++;
-                Log.d(TAG, "sample#" + sDiag + " entry="
-                    + entry.substring(0, Math.min(1200, entry.length())));
             }
             entries.add(new RawEntry(entry, count));
         }
@@ -473,6 +463,394 @@ public final class SortByRatingsHelper {
         int j = skipWs(entry, keyEnd);
         if (j >= entry.length() || entry.charAt(j) != ':') return -1;
         return j;
+    }
+
+    // ----------------------------------------------------------------
+    // ATLAS search/browse feed (slots + product rows)
+    // ----------------------------------------------------------------
+
+    /** One product card in an ATLAS product row. */
+    private static final class AtlasCard {
+        final Object item;
+        final int count;
+        final boolean ad;
+
+        AtlasCard(Object item, int count, boolean ad) {
+            this.item = item;
+            this.count = count;
+            this.ad = ad;
+        }
+    }
+
+    /** One ATLAS row: a slot whose dlsData contains a list of product cards. */
+    private static final class AtlasRow {
+        final int slotIndex;
+        final JSONObject listHolder;
+        final JSONArray cards;
+        final int originalLen;
+        final String type;
+        int newLen;
+
+        AtlasRow(int slotIndex, JSONObject listHolder, JSONArray cards, String type) {
+            this.slotIndex = slotIndex;
+            this.listHolder = listHolder;
+            this.cards = cards;
+            this.originalLen = cards.length();
+            this.type = type;
+            this.newLen = this.originalLen;
+        }
+    }
+
+    /**
+     * Rewrites every {@code "slots"} array in the response: product rows are
+     * sorted by rating count descending and ad cards are dropped.  Returns the
+     * new JSON, or null when nothing changed / parsing failed.
+     */
+    private static String rewriteAtlasSlots(String json) {
+        List<int[]> spans = new ArrayList<>();
+        collectArraySpans(json, "slots", 0, json.length(), spans, 0);
+        if (spans.isEmpty()) return null;
+        boolean changed = false;
+        for (int i = spans.size() - 1; i >= 0; i--) {
+            int[] span = spans.get(i);
+            try {
+                JSONArray slots = new JSONArray(json.substring(span[0], span[1]));
+                if (rewriteSlotsArray(slots)) {
+                    json = json.substring(0, span[0]) + slots + json.substring(span[1]);
+                    changed = true;
+                }
+            } catch (Exception e) {
+                Log.d(TAG, "atlas slots error: " + e);
+            }
+        }
+        return changed ? json : null;
+    }
+
+    private static boolean rewriteSlotsArray(JSONArray slots) {
+        List<AtlasRow> rows = new ArrayList<>();
+        for (int i = 0; i < slots.length(); i++) {
+            JSONObject slot = slots.optJSONObject(i);
+            if (slot == null) continue;
+            AtlasRow row = toAtlasRow(slot, i);
+            if (row != null) rows.add(row);
+        }
+        if (rows.isEmpty()) return false;
+
+        boolean changed = false;
+        // Group ALL product rows by view type (they may be interleaved with
+        // other widgets) so sorting is global across the page.
+        java.util.LinkedHashMap<String, List<AtlasRow>> groups =
+            new java.util.LinkedHashMap<String, List<AtlasRow>>();
+        for (AtlasRow row : rows) {
+            List<AtlasRow> group = groups.get(row.type);
+            if (group == null) {
+                group = new ArrayList<AtlasRow>();
+                groups.put(row.type, group);
+            }
+            group.add(row);
+        }
+        for (List<AtlasRow> group : groups.values()) {
+            if (rewriteRowGroup(group)) changed = true;
+        }
+
+        // Rebuild the slot list, dropping ad widgets (header badge "AD" /
+        // "Sponsored") and product rows that ended up empty.
+        JSONArray kept = new JSONArray();
+        boolean removed = false;
+        for (int i = 0; i < slots.length(); i++) {
+            JSONObject slot = slots.optJSONObject(i);
+            if (slot == null) continue;
+            if (isAdWidget(slot)) {
+                removed = true;
+                continue;
+            }
+            boolean empty = false;
+            for (AtlasRow row : rows) {
+                if (row.slotIndex == i && row.newLen == 0 && row.originalLen > 0) {
+                    empty = true;
+                    break;
+                }
+            }
+            if (empty) {
+                removed = true;
+                continue;
+            }
+            kept.put(slot);
+        }
+        if (removed) {
+            for (int i = slots.length() - 1; i >= 0; i--) {
+                slots.remove(i);
+            }
+            for (int i = 0; i < kept.length(); i++) {
+                slots.put(kept.opt(i));
+            }
+        }
+        return changed || removed;
+    }
+
+    /**
+     * True for whole widgets that are ads — e.g. the "Top rated products"
+     * carousel which carries a header badge with the text "AD".
+     */
+    private static boolean isAdWidget(JSONObject slot) {
+        JSONObject widget = slot.optJSONObject("widget");
+        if (widget == null) return false;
+        JSONObject data = widget.optJSONObject("data");
+        if (data == null) return false;
+        JSONObject dls = data.optJSONObject("dlsData");
+        if (dls == null) return false;
+        JSONObject header = dls.optJSONObject("header-2-line-content-container_0");
+        if (header == null) return false;
+        JSONObject value = header.optJSONObject("value");
+        if (value == null) return false;
+        for (String key : new String[]{"label_0", "label_1", "label_2", "label_3",
+            "label_4", "label_5"}) {
+            JSONObject label = value.optJSONObject(key);
+            if (label == null) continue;
+            JSONObject labelValue = label.optJSONObject("value");
+            if (labelValue != null && isAdText(labelValue.optString("text", ""))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static AtlasRow toAtlasRow(JSONObject slot, int slotIndex) {
+        JSONObject widget = slot.optJSONObject("widget");
+        if (widget == null) return null;
+        JSONObject data = widget.optJSONObject("data");
+        if (data == null) return null;
+        JSONObject dls = data.optJSONObject("dlsData");
+        if (dls == null) return null;
+        JSONObject holder = dls.optJSONObject("horizontalListData_0");
+        if (holder == null) return null;
+        JSONArray cards = holder.optJSONArray("value");
+        if (cards == null || cards.length() == 0) return null;
+        JSONObject first = cards.optJSONObject(0);
+        JSONObject firstValue = first != null ? first.optJSONObject("value") : null;
+        if (firstValue == null) return null;
+        String type = cardViewType(firstValue);
+        if (!isProductRowType(type)) return null;
+        return new AtlasRow(slotIndex, holder, cards, type);
+    }
+
+    /** True for main feed product card rows (not filters / carousels). */
+    private static boolean isProductRowType(String type) {
+        if (type == null) return false;
+        String t = type.toLowerCase();
+        return t.contains("product_summary")
+            || t.contains("productcardlist")
+            || t.contains("search_feed_card");
+    }
+
+    private static boolean rewriteRowGroup(List<AtlasRow> group) {
+        List<AtlasCard> all = new ArrayList<>();
+        List<Object> before = new ArrayList<>();
+        for (AtlasRow row : group) {
+            for (int i = 0; i < row.cards.length(); i++) {
+                Object item = row.cards.opt(i);
+                before.add(item);
+                JSONObject card = item instanceof JSONObject
+                    ? ((JSONObject) item).optJSONObject("value") : null;
+                if (card == null) {
+                    all.add(new AtlasCard(item, -1, false));
+                    continue;
+                }
+                all.add(new AtlasCard(item, cardRatingCount(card), isAdCard(card)));
+            }
+        }
+        if (all.size() < 2) return false;
+
+        List<AtlasCard> kept = new ArrayList<>();
+        for (AtlasCard card : all) {
+            if (!card.ad) kept.add(card);
+        }
+        boolean adsRemoved = kept.size() != all.size();
+        if (adsRemoved) sAdsRemoved += all.size() - kept.size();
+
+        Collections.sort(kept, new Comparator<AtlasCard>() {
+            @Override
+            public int compare(AtlasCard a, AtlasCard b) {
+                return Integer.compare(b.count, a.count);
+            }
+        });
+
+        List<Object> after = new ArrayList<>();
+        for (AtlasCard card : kept) after.add(card.item);
+
+        // Redistribute keeping every row's original size.
+        int p = 0;
+        for (AtlasRow row : group) {
+            JSONArray arr = new JSONArray();
+            for (int i = 0; i < row.originalLen && p < kept.size(); i++, p++) {
+                arr.put(kept.get(p).item);
+            }
+            row.newLen = arr.length();
+            try {
+                row.listHolder.put("value", arr);
+            } catch (Exception e) {
+                Log.d(TAG, "atlas row write error: " + e);
+                return false;
+            }
+        }
+
+        boolean orderChanged = !sameSequence(before, after);
+        return adsRemoved || orderChanged;
+    }
+
+    private static boolean sameSequence(List<Object> a, List<Object> b) {
+        if (a.size() != b.size()) return false;
+        for (int i = 0; i < a.size(); i++) {
+            if (a.get(i) != b.get(i)) return false;
+        }
+        return true;
+    }
+
+    private static String cardViewType(JSONObject card) {
+        JSONObject tracker = card.optJSONObject("trackerData_0");
+        JSONObject tracking = tracker != null ? tracker.optJSONObject("tracking") : null;
+        if (tracking == null) return "";
+        String view = tracking.optString("viewType", "");
+        if (view.isEmpty()) view = tracking.optString("dataKey", "");
+        return view;
+    }
+
+    /**
+     * Rating count shown as {@code ratingData_0.value.reviewText}, e.g.
+     * "| 4.7K+", "| 104", "| 1.1L" (lakh).  Returns -1 when absent.
+     */
+    private static int cardRatingCount(JSONObject card) {
+        JSONObject rating = card.optJSONObject("ratingData_0");
+        JSONObject value = rating != null ? rating.optJSONObject("value") : null;
+        if (value != null) {
+            int direct = value.optInt("count", 0);
+            if (direct <= 0) direct = value.optInt("ratingCount", 0);
+            if (direct > 0) return direct;
+            String review = value.optString("reviewText", "");
+            int parsed = parseCountText(review);
+            if (parsed > 0) return parsed;
+        }
+        return parseCountText(card.optString("reviewText", ""));
+    }
+
+    /** Parses "| 44.3K+", "44.3K", "1,234" into an integer, or -1. */
+    private static int parseCountText(String text) {
+        if (text == null) return -1;
+        String t = text.trim();
+        int bar = t.indexOf('|');
+        if (bar >= 0) t = t.substring(bar + 1).trim();
+        t = t.replace("+", "").replace(",", "").trim();
+        if (t.isEmpty()) return -1;
+        double mult = 1;
+        char last = Character.toLowerCase(t.charAt(t.length() - 1));
+        if (last == 'k') {
+            mult = 1000;
+            t = t.substring(0, t.length() - 1).trim();
+        } else if (last == 'm') {
+            mult = 1000000;
+            t = t.substring(0, t.length() - 1).trim();
+        } else if (last == 'l') {
+            mult = 100000;
+            t = t.substring(0, t.length() - 1).trim();
+        } else if (last == 'c') {
+            mult = 10000000;
+            t = t.substring(0, t.length() - 1).trim();
+        }
+        if (t.isEmpty()) return -1;
+        try {
+            double d = Double.parseDouble(t);
+            if (d <= 0) return -1;
+            return (int) Math.min(Integer.MAX_VALUE, d * mult);
+        } catch (Exception e) {
+            return -1;
+        }
+    }
+
+    /** True when the card carries an ad/sponsored badge. */
+    private static boolean isAdCard(JSONObject card) {
+        if (isAdText(tagText(card, "tagData_0")) || isAdText(tagText(card, "tagData_1"))) {
+            return true;
+        }
+        if (card.optBoolean("isAd", false) || card.optBoolean("isSponsored", false)) {
+            return true;
+        }
+        JSONObject tracking = card.optJSONObject("trackerData_0");
+        JSONObject t = tracking != null ? tracking.optJSONObject("tracking") : null;
+        if (t != null) {
+            String category = t.optString("widgetCategory", "");
+            String finding = t.optString("detailedFindingMethod", "");
+            if ("AD".equalsIgnoreCase(category)) return true;
+            if (finding != null && finding.toLowerCase().contains("sponsor")) return true;
+        }
+        return false;
+    }
+
+    private static String tagText(JSONObject card, String tagKey) {
+        JSONObject tag = card.optJSONObject(tagKey);
+        if (tag == null) return "";
+        JSONObject value = tag.optJSONObject("value");
+        return value != null ? value.optString("text", "") : "";
+    }
+
+    private static boolean isAdText(String text) {
+        if (text == null) return false;
+        String t = text.trim();
+        return t.equalsIgnoreCase("AD")
+            || t.equalsIgnoreCase("Sponsored")
+            || t.equalsIgnoreCase("Sponsored Ad");
+    }
+
+    /** Finds the spans of every array value stored under {@code name}. */
+    private static void collectArraySpans(String s, String name, int from, int to,
+                                          List<int[]> out, int depth) {
+        if (depth > 12) return;
+        int i = skipWs(s, from);
+        while (i < to) {
+            char c = s.charAt(i);
+            if (c == '"') {
+                int keyEnd = skipString(s, i);
+                if (keyEnd < 0) return;
+                String key = unescape(s.substring(i + 1, keyEnd - 1));
+                int j = skipWs(s, keyEnd);
+                if (j >= to || s.charAt(j) != ':') {
+                    i = keyEnd;
+                    continue;
+                }
+                j = skipWs(s, j + 1);
+                if (j >= to) return;
+                char v = s.charAt(j);
+                if (v == '[') {
+                    int end = skipValue(s, j);
+                    if (end < 0 || end > to) return;
+                    if (name.equals(key)) {
+                        out.add(new int[]{j, end});
+                    } else {
+                        collectArraySpans(s, name, j + 1, end - 1, out, depth + 1);
+                    }
+                    i = end;
+                    continue;
+                }
+                if (v == '{') {
+                    int end = skipValue(s, j);
+                    if (end < 0 || end > to) return;
+                    collectArraySpans(s, name, j + 1, end - 1, out, depth + 1);
+                    i = end;
+                    continue;
+                }
+                int end = skipValue(s, j);
+                if (end < 0 || end > to) return;
+                i = end;
+                continue;
+            }
+            if (c == '{' || c == '[') {
+                int end = skipValue(s, i);
+                if (end < 0 || end > to) return;
+                collectArraySpans(s, name, i + 1, end - 1, out, depth + 1);
+                i = end;
+                continue;
+            }
+            i++;
+        }
     }
 
     private static String keyList(JSONObject obj) {

@@ -10,7 +10,7 @@ private const val HELPER = "Lapp/template/extension/extension/SortByRatingsHelpe
 val flipkartSortByRatingsCountPatch = bytecodePatch(
     name = "Sort by number of ratings",
     description = "Sorts Flipkart search results by number of ratings (descending) " +
-        "via native JSON interception of the React Native NetworkCaller bridge.",
+        "and removes ad/sponsored items across all listing pages.",
     default = false,
 ) {
     compatibleWith(FLIPKART_COMPATIBILITY)
