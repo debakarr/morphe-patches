@@ -1,3 +1,9 @@
+## [1.5.0](https://github.com/debakarr/morphe-patches/compare/v1.4.0...v1.5.0) (2026-09-29)
+
+### ✨ New Features
+
+* add Myntra and Meesho, fix Amazon and Flipkart 9.15 sorting ([b7821e3](https://github.com/debakarr/morphe-patches/commit/b7821e301e98b83f8e302edf54f6229aa06eed4c))
+
 ## [1.4.0](https://github.com/debakarr/morphe-patches/compare/v1.3.0...v1.4.0) (2026-09-29)
 
 ### ✨ New Features
