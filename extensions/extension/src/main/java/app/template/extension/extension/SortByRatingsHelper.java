@@ -225,6 +225,15 @@ public final class SortByRatingsHelper {
         if (json == null || json.length() < 10) return json;
         int call = ++sNetworkCalls;
 
+        // Cheap guard: this runs for every mapi response now, so avoid a full
+        // JSON parse for the vast majority that carry no product map.
+        if (json.indexOf("\"product\"") < 0) {
+            if (call <= 20) {
+                Log.d(TAG, "call#" + call + " len=" + json.length() + " (no product key)");
+            }
+            return json;
+        }
+
         try {
             JSONObject root = new JSONObject(json);
 

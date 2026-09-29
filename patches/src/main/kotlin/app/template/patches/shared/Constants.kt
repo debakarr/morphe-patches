@@ -27,6 +27,9 @@ object Constants {
         packageName = "com.flipkart.android",
         appIconColor = 0x2874F0,
         apkFileType = ApkFileType.XAPK,
-        targets = listOf(AppTarget(version = "9.13", versionCode = 3220300))
+        targets = listOf(
+            AppTarget(version = "9.15", versionCode = 3240500),
+            AppTarget(version = "9.13", versionCode = 3220300),
+        )
     )
 }
