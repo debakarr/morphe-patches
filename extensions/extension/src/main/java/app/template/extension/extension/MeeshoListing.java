@@ -52,16 +52,15 @@ final class MeeshoListing {
         public Product describe(JSONObject item) {
             String id = ListingSorter.firstString(item, "catalog_id", "id", "product_id");
             if (id.isEmpty()) return null;
-            // Product links use the id in base 36 ("meesho.com/<slug>/p/99ecyr").
-            String link = id;
-            try {
-                link = Long.toString(Long.parseLong(id), 36);
-            } catch (NumberFormatException ignored) {
-                // already a slug-style id
-            }
+            // Meesho's product links are "meesho.com/<slug>/p/<code>" where <code> is the
+            // base-36 of the catalog's hero product id (hero_pid) — NOT of the catalog id
+            // (verified: /p/99ecyr == hero_pid 559982115 of catalog 197079887).
+            String code = id;
+            long hero = (long) ListingSorter.toDouble(item.opt("hero_pid"));
+            if (hero > 0) code = Long.toString(hero, 36);
             return new Product(id, ListingSorter.firstString(item, "name", "title"),
                 ListingSorter.firstNumber(item, "min_catalog_price", "price", "min_product_price"),
-                rating(item), ratingCount(item), "https://www.meesho.com/s/p/" + link);
+                rating(item), ratingCount(item), "https://www.meesho.com/s/p/" + code);
         }
 
         @Override

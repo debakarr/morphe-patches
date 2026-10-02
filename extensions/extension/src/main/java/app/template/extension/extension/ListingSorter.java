@@ -183,19 +183,24 @@ final class ListingSorter {
         return out;
     }
 
-    /** A JSON number or numeric string as a double, or -1. */
+    /**
+     * A JSON number, or the first number inside a string ("4", "4.3", "₹1,299"), as a
+     * double, or -1. Currency signs and other leading text are skipped.
+     */
     static double toDouble(Object value) {
         if (value instanceof Number) {
             double d = ((Number) value).doubleValue();
             return d > 0 ? d : -1;
         }
         if (value instanceof String) {
-            String t = ((String) value).replace(",", "").trim();
-            int end = 0;
+            String t = ((String) value).replace(",", "");
+            int start = 0;
+            while (start < t.length() && !Character.isDigit(t.charAt(start))) start++;
+            if (start >= t.length()) return -1;
+            int end = start;
             while (end < t.length() && (Character.isDigit(t.charAt(end)) || t.charAt(end) == '.')) end++;
-            if (end == 0) return -1;
             try {
-                double d = Double.parseDouble(t.substring(0, end));
+                double d = Double.parseDouble(t.substring(start, end));
                 return d > 0 ? d : -1;
             } catch (NumberFormatException e) {
                 return -1;

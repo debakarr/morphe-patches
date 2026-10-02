@@ -72,13 +72,13 @@ The patch wraps the response reader inside the base mapi Gson converter, parses 
 |---|---|
 | Approach | Rewrites the response body in Retrofit's `MoshiResponseBodyConverter` |
 | Scope | Catalog feeds, search, CLP, collections |
-| Compatibility | `com.meesho.supply` v29.5 |
+| Compatibility | `com.meesho.supply` v29.6 · v29.5 |
 
 Products in `catalogs[]` / `products[]` are sorted by `catalog_reviews_summary.rating_count`; ad catalogs (`ad.active`) are removed. Banners and widgets in the same list keep their position.
 
 > **Infinite scroll (Flipkart, Myntra, Meesho):** each page is sorted as it arrives, so on its own a well-rated item on page 3 cannot move above page 1 — use **Ranked** for the cross-page order. To make each page's sort cover more, Meesho requests 100 items per page and Myntra 60 while a sort is on. Flipkart's next-page cursor is an opaque token, so its page size can't be changed. Amazon's WebView patch re-sorts everything loaded so far.
 
-> **Verified on a device (Redmi 3S, Android 13):** **Flipkart 9.15** and **Amazon India 32.18.0.300** — the sort modes, 4★+, Hide ads, the Ranked list (111 of 137 products across pages on Flipkart; Amazon's "Load 5 more pages" took one search from 20 to 120 products), and tapping a row to open the product in the app. Flipkart row titles are the brand plus the app's own description text, so they follow the app's language. **Not yet verified on a device:** **Myntra** and **Meesho** — they use the same shared logic and are covered by unit tests, but no unpatched APKs were available to test with, and Meesho's average-rating field name (`catalog_reviews_summary.average_rating`, with fallbacks) is still unconfirmed against a real response. Where a field is missing the row shows less, never a made-up number.
+> **Verified on a device (Redmi 3S, Android 13):** **Flipkart 9.15**, **Amazon India 32.18.0.300**, **Myntra 4.2609.30** and **Meesho 29.6** — the sort modes, 4★+, Hide ads, the Ranked list across pages (e.g. 111 of 137 on Flipkart; Amazon's "Load 5 more pages" took one search from 20 to 120 products), and tapping a row to open the product in the app. Field names were confirmed against real responses: Meesho's average is `catalog_reviews_summary.average_rating`, and its product link code is the base-36 of the catalog's `hero_pid` (not its `id`); Myntra's V2 tiles keep the full name in `onLongPress.modalData.productName` and prices as strings like `₹558`. Flipkart row titles are the brand plus the app's own description text, so they follow the app's language. Where a field is missing the row shows less, never a made-up number. Not tested: Meesho 29.5, Flipkart 9.13, Amazon (`com.amazon.mShop.android.shopping`) 32.13 and 32.16.
 
 ## Add to Morphe
 

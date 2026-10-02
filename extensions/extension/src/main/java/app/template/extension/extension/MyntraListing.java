@@ -91,16 +91,39 @@ final class MyntraListing {
             if (d == null) return null;
             String id = ListingSorter.firstString(d, "productId", "styleId", "id");
             if (id.isEmpty()) return null;
-            String brand = ListingSorter.firstString(d, "brand", "brandName");
-            String name = ListingSorter.firstString(d, "name", "productName", "product", "title", "additionalInfo");
-            JSONObject image = d.optJSONObject("productImage");
-            if (name.isEmpty() && image != null) name = ListingSorter.firstString(image, "alt", "title", "name");
-            String title = name.startsWith(brand) ? name : (brand + " " + name).trim();
-            String path = ListingSorter.firstString(d, "landingPageUrl", "url", "link");
+            JSONObject info = d.optJSONObject("productInfo");
+            JSONObject modal = null;
+            JSONObject longPress = d.optJSONObject("onLongPress");
+            if (longPress != null) modal = longPress.optJSONObject("modalData");
+
+            // PRODUCT_TILE_V2 carries the full name in the long-press data; the plain
+            // brand + short description is the fallback (and what the older tile uses).
+            String title = ListingSorter.firstString(modal, "productName");
+            if (title.isEmpty()) {
+                String brand = ListingSorter.firstString(info, "brand");
+                if (brand.isEmpty()) brand = ListingSorter.firstString(d, "brand", "brandName");
+                String name = ListingSorter.firstString(info, "additionalInfo", "name");
+                if (name.isEmpty()) name = ListingSorter.firstString(d, "name", "productName", "product", "title", "additionalInfo");
+                title = name.startsWith(brand) ? name : (brand + " " + name).trim();
+            }
+
+            // Prices are strings like "₹558" in V2 tiles; the long-press data also has a plain number.
+            double price = ListingSorter.firstNumber(modal, "price");
+            if (price <= 0 && info != null) {
+                JSONObject priceInfo = info.optJSONObject("priceInfo");
+                price = ListingSorter.firstNumber(priceInfo, "price", "discounted");
+            }
+            if (price <= 0) price = ListingSorter.firstNumber(d, "discountedPrice", "price", "sellingPrice");
+
+            // V2 tiles navigate to "/<styleId>?…"; older ones carry a landing page path.
+            String path = "";
+            JSONObject press = d.optJSONObject("onPress");
+            if (press != null) path = ListingSorter.firstString(press, "route");
+            if (path.isEmpty()) path = ListingSorter.firstString(d, "landingPageUrl", "url", "link");
+            int query = path.indexOf('?');
+            if (query >= 0) path = path.substring(0, query);
             String url = "https://www.myntra.com/" + (path.isEmpty() ? id : path.replaceFirst("^/", ""));
-            return new Product(id, title,
-                ListingSorter.firstNumber(d, "discountedPrice", "price", "sellingPrice"),
-                rating(item), ratingCount(item), url);
+            return new Product(id, title, price, rating(item), ratingCount(item), url);
         }
 
         @Override

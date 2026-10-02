@@ -203,13 +203,47 @@ public class RankingModesTest {
         assertEquals(-1, got.get(3).rating, 0);
     }
 
+    /** A PRODUCT_TILE_V2 tile in the shape captured from the real app (Myntra 4.2609.30). */
+    @Test
+    public void myntraDescribesARealV2Tile() throws Exception {
+        JSONObject data = new JSONObject().put("type", "PRODUCT_TILE_V2").put("styleId", 9364379)
+            .put("productImage", new JSONObject().put("adLabel", "").put("ratingInfo",
+                new JSONObject().put("rating", "4.4").put("count", "1k")))
+            .put("productInfo", new JSONObject().put("brand", "Shoetopia").put("additionalInfo", "Women Heels")
+                .put("priceInfo", new JSONObject().put("mrp", "\u20B9999").put("price", "\u20B9558")))
+            .put("onPress", new JSONObject().put("type", "NAVIGATION")
+                .put("route", "/9364379?isMnowCalloutDisplayedInSrc=false"))
+            .put("onLongPress", new JSONObject().put("modalData", new JSONObject()
+                .put("productName", "Shoetopia Women Tan Solid Heels").put("mrp", 999).put("price", 558)));
+        JSONObject tile = new JSONObject().put("id", "9364379").put("itemType", "WIDGET")
+            .put("itemData", new JSONObject().put("widgetType", "PRODUCT_TILE_V2").put("data", data));
+        MyntraListing.process(new JSONObject().put("components", new JSONArray().put(tile))
+            .put("pad", "x".repeat(100)).toString());
+        Product p = RankedStore.snapshot().get(0);
+        assertEquals("9364379", p.id);
+        assertEquals("Shoetopia Women Tan Solid Heels", p.title);
+        assertEquals(558, p.price, 0);
+        assertEquals(4.4, p.rating, 0);
+        assertEquals(1000, p.count);
+        assertEquals("https://www.myntra.com/9364379", p.url);
+    }
+
+    @Test
+    public void numbersAreReadFromStringsWithCurrencySignsAndGrouping() {
+        assertEquals(558, ListingSorter.toDouble("\u20B9558"), 0);
+        assertEquals(1299, ListingSorter.toDouble("\u20B91,299"), 0);
+        assertEquals(4, ListingSorter.toDouble("4"), 0);
+        assertEquals(-1, ListingSorter.toDouble("free"), 0);
+        assertEquals(-1, ListingSorter.toDouble(0), 0);
+    }
+
     /* ---------------------------------------------------------------- Meesho */
 
     private static JSONObject catalog(int id, double avg, int count, boolean ad) throws Exception {
         JSONObject summary = new JSONObject();
         if (count > 0) summary.put("rating_count", count);
         if (avg > 0) summary.put("average_rating", avg);
-        JSONObject c = new JSONObject().put("id", id).put("name", "item " + id)
+        JSONObject c = new JSONObject().put("id", id).put("hero_pid", 559982115L + id).put("name", "item " + id)
             .put("min_catalog_price", 200 + id).put("catalog_reviews_summary", summary);
         if (ad) c.put("ad", new JSONObject().put("active", true));
         return c;
@@ -237,6 +271,14 @@ public class RankingModesTest {
     }
 
     @Test
+    public void meeshoLinkMatchesTheWebCodeForARealHeroPid() throws Exception {
+        // From the real app: hero_pid 559982115 is the product the web links as /p/99ecyr.
+        JSONObject c = catalog(7, 4.3, 4534, false).put("hero_pid", 559982115L);
+        MeeshoListing.process(new JSONObject().put("catalogs", new JSONArray().put(c)).put("pad", "x".repeat(80)).toString());
+        assertEquals("https://www.meesho.com/s/p/99ecyr", RankedStore.snapshot().get(0).url);
+    }
+
+    @Test
     public void meeshoFilterAndCollection() throws Exception {
         SortState.forTest(COUNT, true, true);
         assertEquals("10,11", catalogIds(MeeshoListing.process(meeshoPage())));
@@ -245,7 +287,8 @@ public class RankingModesTest {
         Product ten = RankedStore.snapshot().get(0);
         assertEquals(4.0, ten.rating, 0);
         assertEquals(4534, ten.count);
-        assertEquals("https://www.meesho.com/s/p/" + Long.toString(10, 36), ten.url);
+        // the link code is the base-36 of hero_pid, not of the catalog id
+        assertEquals("https://www.meesho.com/s/p/" + Long.toString(559982115L + 10, 36), ten.url);
     }
 
     /* ---------------------------------------------------------------- Flipkart */
