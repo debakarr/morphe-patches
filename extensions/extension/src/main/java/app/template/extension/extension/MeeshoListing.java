@@ -37,6 +37,34 @@ final class MeeshoListing {
         }
 
         @Override
+        public double rating(JSONObject item) {
+            JSONObject summary = item.optJSONObject("catalog_reviews_summary");
+            if (summary == null) return -1;
+            // The average's field name is not confirmed on every feed: accept the usual ones.
+            for (String key : new String[]{"average_rating", "avg_rating", "rating", "average"}) {
+                double d = ListingSorter.toDouble(summary.opt(key));
+                if (d > 0) return d;
+            }
+            return -1;
+        }
+
+        @Override
+        public Product describe(JSONObject item) {
+            String id = ListingSorter.firstString(item, "catalog_id", "id", "product_id");
+            if (id.isEmpty()) return null;
+            // Product links use the id in base 36 ("meesho.com/<slug>/p/99ecyr").
+            String link = id;
+            try {
+                link = Long.toString(Long.parseLong(id), 36);
+            } catch (NumberFormatException ignored) {
+                // already a slug-style id
+            }
+            return new Product(id, ListingSorter.firstString(item, "name", "title"),
+                ListingSorter.firstNumber(item, "min_catalog_price", "price", "min_product_price"),
+                rating(item), ratingCount(item), "https://www.meesho.com/s/p/" + link);
+        }
+
+        @Override
         public boolean isAd(JSONObject item) {
             if (item.optBoolean("isAdProduct", false)) return true;
             JSONObject ad = item.optJSONObject("ad");
@@ -50,7 +78,6 @@ final class MeeshoListing {
         Diag.dump("meesho", json);
         if (json.indexOf("\"catalog_reviews_summary\"") < 0 && json.indexOf("\"ad\"") < 0) return json;
         SortState.noteListing();
-        if (!SortState.sortOn() && !SortState.hideAds()) return json;
         try {
             JSONObject root = new JSONObject(json);
             ListingSorter.Stats stats = new ListingSorter.Stats();

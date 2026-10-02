@@ -37,6 +37,18 @@ final class MyntraListing {
         return null;
     }
 
+    /** The rating block of a tile: top-level, {@code rating}, or under {@code productImage} (V2). */
+    private static JSONObject ratingInfo(JSONObject d) {
+        if (d == null) return null;
+        JSONObject info = d.optJSONObject("ratingInfo");
+        if (info == null) info = d.optJSONObject("rating");
+        if (info == null) {
+            JSONObject image = d.optJSONObject("productImage");
+            if (image != null) info = image.optJSONObject("ratingInfo");
+        }
+        return info;
+    }
+
     private static final ListingSorter.Rules RULES = new ListingSorter.Rules() {
         @Override
         public boolean isProduct(JSONObject item) {
@@ -68,6 +80,30 @@ final class MyntraListing {
         }
 
         @Override
+        public double rating(JSONObject item) {
+            JSONObject info = ratingInfo(data(item));
+            return info == null ? -1 : ListingSorter.toDouble(info.opt("rating"));
+        }
+
+        @Override
+        public Product describe(JSONObject item) {
+            JSONObject d = data(item);
+            if (d == null) return null;
+            String id = ListingSorter.firstString(d, "productId", "styleId", "id");
+            if (id.isEmpty()) return null;
+            String brand = ListingSorter.firstString(d, "brand", "brandName");
+            String name = ListingSorter.firstString(d, "name", "productName", "product", "title", "additionalInfo");
+            JSONObject image = d.optJSONObject("productImage");
+            if (name.isEmpty() && image != null) name = ListingSorter.firstString(image, "alt", "title", "name");
+            String title = name.startsWith(brand) ? name : (brand + " " + name).trim();
+            String path = ListingSorter.firstString(d, "landingPageUrl", "url", "link");
+            String url = "https://www.myntra.com/" + (path.isEmpty() ? id : path.replaceFirst("^/", ""));
+            return new Product(id, title,
+                ListingSorter.firstNumber(d, "discountedPrice", "price", "sellingPrice"),
+                rating(item), ratingCount(item), url);
+        }
+
+        @Override
         public boolean isAd(JSONObject item) {
             JSONObject d = data(item);
             if (d == null) return false;
@@ -85,7 +121,6 @@ final class MyntraListing {
         Diag.dump("myntra", json);
         if (json.indexOf("\"PRODUCT_TILE") < 0 && json.indexOf("\"productId\"") < 0) return json;
         SortState.noteListing();
-        if (!SortState.sortOn() && !SortState.hideAds()) return json;
         try {
             JSONObject root = new JSONObject(json);
             ListingSorter.Stats stats = new ListingSorter.Stats();
