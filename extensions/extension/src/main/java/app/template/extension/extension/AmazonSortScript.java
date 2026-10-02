@@ -380,7 +380,8 @@ final class AmazonSortScript {
     if (box) { box.parentNode.removeChild(box); return; }
     box = document.createElement('div');
     box.id = PANEL;
-    box.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;z-index:2147483646;display:flex;flex-direction:column;background:#fff';
+    // Same (maximum) z-index as the floating buttons, and added after them, so the list covers them.
+    box.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;z-index:2147483647;display:flex;flex-direction:column;background:#fff';
     document.documentElement.appendChild(box);
     findCards().forEach(remember);
     if (state.mode !== 'off') panel.mode = state.mode;

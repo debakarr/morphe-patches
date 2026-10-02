@@ -663,7 +663,10 @@ public final class SortByRatingsHelper {
         int words = 0;
         for (String text : texts) {
             if (text.startsWith("\u20B9")) {
-                if (price < 0) price = ListingSorter.toDouble(text.substring(1));
+                // A card prints both the struck-through MRP and the selling price:
+                // the selling price is the lower of the rupee amounts.
+                double amount = ListingSorter.toDouble(text.substring(1));
+                if (amount > 0 && (price < 0 || amount < price)) price = amount;
                 continue;
             }
             if (isAdText(text) || text.contains("%") || text.startsWith("|")) continue;

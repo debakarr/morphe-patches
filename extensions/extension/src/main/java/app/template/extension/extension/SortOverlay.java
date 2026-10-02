@@ -126,6 +126,8 @@ final class SortOverlay {
                     mode == SortState.Mode.RATING ? "Top rated ✓" : "Most rated ✓");
                 paint(four, SortState.minFour(), "4★+", "4★+ ✓");
                 paint(ads, SortState.hideAds(), "Hide ads", "Ads hidden ✓");
+                // Labels change length ("Ranked (7)" -> "Ranked (31)"): re-measure so none is clipped.
+                box.requestLayout();
                 box.postDelayed(this, 1500);
             }
         };
@@ -181,6 +183,9 @@ final class SortOverlay {
         t.setTypeface(t.getTypeface(), android.graphics.Typeface.BOLD);
         int h = dp(activity, 14), v = dp(activity, 10);
         t.setPadding(h, v, h, v);
+        t.setGravity(Gravity.CENTER);
+        t.setMinWidth(dp(activity, 132));
+        t.setSingleLine(true);
         t.setClickable(true);
         return t;
     }

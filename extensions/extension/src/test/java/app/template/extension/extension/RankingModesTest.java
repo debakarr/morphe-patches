@@ -259,7 +259,9 @@ public class RankingModesTest {
         JSONObject text = new JSONObject()
             .put("label_0", new JSONObject().put("value", new JSONObject().put("text", "Brand " + id)))
             .put("label_1", new JSONObject().put("value", new JSONObject().put("text", "Heels for women")))
-            .put("label_3", new JSONObject().put("value", new JSONObject().put("text", "₹" + (500 + id.charAt(0)))));
+            // the struck-through MRP (label_3) is higher than the selling price (label_4)
+            .put("label_3", new JSONObject().put("value", new JSONObject().put("text", "₹1,999")))
+            .put("label_4", new JSONObject().put("value", new JSONObject().put("text", "₹" + (500 + id.charAt(0)))));
         if (rd.length() > 0) text.put("ratingData_0", new JSONObject().put("value", rd));
         if (sponsored) text.put("label_2", new JSONObject().put("value", new JSONObject().put("text", "Sponsored")));
         return new JSONObject().put("value", new JSONObject()
@@ -331,7 +333,7 @@ public class RankingModesTest {
         assertEquals(4.2, c.rating, 0);
         assertEquals(44900, c.count);
         assertEquals("Brand c Heels for women", c.title);
-        assertEquals(599, c.price, 0); // 500 + 'c'(99)
+        assertEquals(599, c.price, 0); // the selling price (500 + 'c'), not the 1,999 MRP
         assertEquals("https://www.flipkart.com/product/p/item?pid=c", c.url);
     }
 
