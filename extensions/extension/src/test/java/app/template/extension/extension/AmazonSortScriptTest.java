@@ -43,6 +43,14 @@ public class AmazonSortScriptTest {
     }
 
     @Test
+    public void addsMostAndTopRatedToAmazonsOwnSortSheet() {
+        assertTrue(JS.contains("a[id^=\"sort/\"]"));
+        assertTrue(JS.contains("'sort/morphe-' + mode"));
+        // the new links load the default order, not a sort of their own
+        assertTrue(JS.contains("searchParams.delete('s')"));
+    }
+
+    @Test
     public void writesTheScriptOutForExternalChecks() throws Exception {
         // `node --check` and a byte-for-byte comparison run against this file outside the JVM.
         File out = new File("build/amazon-sort.compiled.js");

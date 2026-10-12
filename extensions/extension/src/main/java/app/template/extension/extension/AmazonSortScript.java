@@ -429,8 +429,67 @@ final class AmazonSortScript {
     step(done + 1);
   }
 
+  // Amazon's own Sort sheet is a list of links (<a id="sort/review-rank" href="...&s=review-rank">).
+  // Add "Most rated" / "Top rated" next to them. Each new link is a copy of an existing one, so
+  // choosing it loads a valid page (the server's default order); the click records the mode first
+  // and the script sorts the loaded page as usual. Any other sort link switches our mode off.
+  var SORT_ENTRIES = [['count', 'Most rated'], ['rating', 'Top rated']];
+
+  function markSortLink(link, mode, label) {
+    var on = state.mode === mode;
+    var text = link.querySelector('span');
+    if (text) text.textContent = on ? label + ' \u2713' : label;
+    link.setAttribute('data-csa-c-selected', on ? 'true' : 'false');
+    link.setAttribute('aria-current', on ? 'true' : 'false');
+  }
+
+  function injectSortLinks() {
+    var links = document.querySelectorAll('a[id^="sort/"]');
+    if (!links.length) return;
+    var hosts = [];
+    for (var i = 0; i < links.length; i++) {
+      var host = links[i].parentNode;
+      if (host && hosts.indexOf(host) < 0) hosts.push(host);
+      if (links[i].id.indexOf('sort/morphe-') === 0 || links[i].getAttribute('data-morphe-sort-bound')) continue;
+      links[i].setAttribute('data-morphe-sort-bound', '1');
+      links[i].addEventListener('click', function () { state.mode = 'off'; saveMode('off'); }, true);
+    }
+    hosts.forEach(function (host) {
+      var source = host.querySelector('a[id="sort/relevanceblender"]') || host.querySelector('a[id^="sort/"]:not([id^="sort/morphe-"])');
+      if (!source) return;
+      SORT_ENTRIES.forEach(function (entry) {
+        var mode = entry[0], label = entry[1], id = 'sort/morphe-' + mode;
+        var link = host.querySelector('a[id="' + id + '"]');
+        if (!link) {
+          link = source.cloneNode(true);
+          link.id = id;
+          link.setAttribute('data-csa-c-content-id', id);
+          link.setAttribute('aria-label', 'Apply the filter ' + label + ' to narrow results');
+          link.setAttribute('data-morphe-sort-bound', '1');
+          // The default order: the same search without a sort (and its signature).
+          try {
+            var url = new URL(source.getAttribute('href'), location.href);
+            url.searchParams.delete('s'); url.searchParams.delete('ds');
+            link.setAttribute('href', url.pathname + url.search);
+          } catch (e) {}
+          link.addEventListener('click', function () { state.mode = mode; saveMode(mode); }, true);
+          host.appendChild(link);
+        }
+        markSortLink(link, mode, label);
+      });
+      if (state.mode !== 'off') {
+        var others = host.querySelectorAll('a[id^="sort/"]:not([id^="sort/morphe-"])');
+        for (var k = 0; k < others.length; k++) {
+          others[k].setAttribute('data-csa-c-selected', 'false');
+          others[k].setAttribute('aria-current', 'false');
+        }
+      }
+    });
+  }
+
   function refresh() {
     timer = null;
+    injectSortLinks();
     var cards = findCards();
     cards.forEach(remember);
     var hidden = setAdsHidden(cards, state.ads);
