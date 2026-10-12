@@ -27,3 +27,15 @@ internal val CatalogsRequestBodyConstructorFingerprint = Fingerprint(
             method.parameterTypes[3] == "I" && method.parameterTypes[4] == "I"
     },
 )
+
+/**
+ * Moshi adapter that writes a `SortOption` ({selected, display_name, sort_by, sort_order})
+ * into listing and sort-filter requests. `p2` is the option being written.
+ */
+internal val SortOptionToJsonFingerprint = Fingerprint(
+    definingClass = "Lcom/meesho/sortfilter/api/model/SortOptionJsonAdapter;",
+    name = "toJson",
+    custom = { method, _ ->
+        method.parameterTypes.size == 2 && method.parameterTypes[1] == "Ljava/lang/Object;"
+    },
+)

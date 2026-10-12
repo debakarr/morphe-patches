@@ -59,7 +59,12 @@ public final class SortByRatingsHelper {
 
     /** Meesho: rewrites a Moshi-bound response body (hooked in the Retrofit converter). */
     public static String processMeeshoResponse(String json) {
-        return MeeshoListing.process(json);
+        return MeeshoListing.process(MeeshoSortMenu.rewriteResponse(json));
+    }
+
+    /** Meesho: the app is writing its chosen SortOption into a request (hooked in the Moshi adapter). */
+    public static void meeshoSortWritten(Object sortOption) {
+        MeeshoSortMenu.onSortWritten(sortOption);
     }
 
     /**
@@ -74,6 +79,11 @@ public final class SortByRatingsHelper {
     /** Myntra: rewrites a response body before it is handed to React Native. */
     public static String processMyntraResponse(String json) {
         return MyntraListing.process(json);
+    }
+
+    /** Myntra: the layout-engine page request the app is sending (hooked in LayoutEngineModule). */
+    public static void myntraPageRequest(Object request) {
+        MyntraSortMenu.onPageRequest(request);
     }
 
     /** Myntra: rewrites a raw response body (React Native blob responses). */

@@ -16,6 +16,13 @@ val meeshoSortByRatingsCountPatch = bytecodePatch(
     extendWith("extensions/extension.mpe")
 
     execute {
+        // Our "Most rated" / "Top rated" sort entries: tell the extension when the app
+        // sends one of them (p2 = SortOption).
+        SortOptionToJsonFingerprint.method.addInstructions(
+            0,
+            "invoke-static {p2}, $HELPER->meeshoSortWritten(Ljava/lang/Object;)V",
+        )
+
         // Bigger pages while "Most rated" is on: limit (p5) goes through the helper.
         CatalogsRequestBodyConstructorFingerprint.method.addInstructions(
             0,

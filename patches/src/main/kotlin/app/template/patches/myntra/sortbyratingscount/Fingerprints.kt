@@ -57,3 +57,9 @@ internal val LayoutEngineProcessSuccessFingerprint = Fingerprint(
     definingClass = LAYOUT_ENGINE,
     name = "processSuccessResponse",
 )
+
+/** The layout-engine page request; `p1` is the ReadableMap describing it. */
+internal val LayoutEngineGetPageFromCoreFingerprint = Fingerprint(
+    definingClass = LAYOUT_ENGINE,
+    name = "getLEPageFromCore",
+)

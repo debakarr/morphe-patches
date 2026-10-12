@@ -148,6 +148,7 @@ final class MyntraListing {
             JSONObject root = new JSONObject(json);
             ListingSorter.Stats stats = new ListingSorter.Stats();
             ListingSorter.rewrite(root, LIST_KEYS, RULES, stats, 0);
+            boolean menu = MyntraSortMenu.addOptions(root, 0);
             // The page echoes its pagination context back on the next fetch:
             // ask for bigger pages while sorting so one sort covers more items.
             boolean bigger = false;
@@ -158,7 +159,7 @@ final class MyntraListing {
                 pagination.put("pageSize", SORT_PAGE_SIZE);
                 bigger = true;
             }
-            if (!stats.changed() && !bigger) return json;
+            if (!stats.changed() && !bigger && !menu) return json;
             SortByRatingsHelper.log("myntra " + stats);
             return root.toString();
         } catch (Throwable t) {

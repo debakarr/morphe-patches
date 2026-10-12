@@ -38,6 +38,11 @@ val myntraSortByRatingsCountPatch = bytecodePatch(
         """.trimIndent()
         LayoutEngineBridgePageDataFingerprint.method.addInstructions(0, rewritePage)
         LayoutEngineProcessSuccessFingerprint.method.addInstructions(0, rewritePage)
+        // The page request (sort changes go through here as CHANGE_URI requests).
+        LayoutEngineGetPageFromCoreFingerprint.method.addInstructions(
+            0,
+            "invoke-static/range {p1 .. p1}, $HELPER->myntraPageRequest(Ljava/lang/Object;)V",
+        )
         // fetch() / XHR blob responses: search and listing pages arrive here.
         BlobResponseHandlerFingerprint.method.filterByteArrayResults("processMyntraBytes") {
             it.definingClass == "Lokhttp3/ResponseBody;" && it.parameterTypes.isEmpty()
