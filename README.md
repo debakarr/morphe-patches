@@ -19,6 +19,17 @@ On a listing screen four floating buttons appear (they only show while a listing
 
 Everything starts off and is remembered. Amazon's **Ranked** panel can also **load 5 more result pages** itself (it runs in a WebView, so it fetches with the page's own session); on Flipkart, Myntra and Meesho the list holds the pages *you scroll to*, because those apps' next-page requests carry private cursors and headers that cannot be replayed safely.
 
+**In each app's own Sort menu too:** the apps' Sort lists now also contain **Most rated** and **Top rated**, so you can pick them where you would pick "Price - low to high". They switch the same modes as the floating sort button, and the button follows what you pick.
+
+| App | Where |
+|---|---|
+| Amazon | Filters → **Sort by** |
+| Flipkart | **Sort & Filter** → **Sort** tab |
+| Myntra | the **Sort** sheet at the bottom |
+| Meesho | the **Sort** sheet |
+
+The apps' servers cannot sort by rating count, so choosing one of these loads the app's default order (or popularity) and the page is then ranked on the phone — the same as the floating button. Picking any other sort turns the mode back off. Flipkart caches its Filters page: if the new entries don't show after an update, open the filters once more after the cache expires or clear the app's data.
+
 > The Ranked list uses each app's own numbers; it is not a verdict on the product.
 
 ## Patches

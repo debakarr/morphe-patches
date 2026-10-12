@@ -74,3 +74,14 @@ internal val MapiGsonConvertFingerprint = Fingerprint(
     returnType = "Ljava/lang/Object;",
     parameters = listOf("Lokhttp3/d0;", "Ljava/io/Reader;"),
 )
+
+/**
+ * Every page fetch (search, browse, sort changes) passes its page URI through here when the
+ * request headers are built: `addURIAndActionHeaders(Map headers, String pageUri, String actionType)`.
+ * A static method, so p1 = pageUri.
+ */
+internal val AddUriAndActionHeadersFingerprint = Fingerprint(
+    name = "addURIAndActionHeaders",
+    returnType = "V",
+    parameters = listOf("Ljava/util/Map;", "Ljava/lang/String;", "Ljava/lang/String;"),
+)

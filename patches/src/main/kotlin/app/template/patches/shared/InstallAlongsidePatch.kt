@@ -142,6 +142,24 @@ private val renameManifestPatch = resourcePatch {
             }
         }
 
+        // Layouts may name classes relative to the app package (".bottomnavigation.BottomBarBehavior").
+        // Android resolves those against the *installed* package, which is now the renamed one,
+        // so spell them out with the original package the classes still live in.
+        val relativeClass = listOf(
+            Regex("""(layout_behavior\s*=\s*")\.(?=[A-Za-z])"""),
+            Regex("""(<(?:fragment|androidx\.fragment\.app\.FragmentContainerView)\b[^>]*?\bandroid:name\s*=\s*")\.(?=[A-Za-z])"""),
+            Regex("""(<view\b[^>]*?\bclass\s*=\s*")\.(?=[A-Za-z])"""),
+        )
+        get("res").listFiles { dir -> dir.isDirectory && (dir.name.startsWith("layout") || dir.name.startsWith("navigation")) }
+            ?.forEach { dir ->
+                dir.listFiles { file -> file.extension == "xml" }?.forEach { file ->
+                    val text = file.readText()
+                    if (!text.contains("=\".") && !text.contains("= \".")) return@forEach
+                    val fixed = relativeClass.fold(text) { acc, regex -> regex.replace(acc) { "${it.groupValues[1]}$original." } }
+                    if (fixed != text) file.writeText(fixed)
+                }
+            }
+
         // Downloadable-font resources (res/font/*.xml) name the provider authority and its
         // package directly; point them at the renamed provider.
         val fontDir = get("res/font")

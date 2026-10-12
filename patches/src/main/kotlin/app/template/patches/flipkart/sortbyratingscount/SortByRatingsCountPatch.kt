@@ -17,6 +17,12 @@ val flipkartSortByRatingsCountPatch = bytecodePatch(
     extendWith("extensions/extension.mpe")
 
     execute {
+        // The page URI of each page fetch: a sort chosen from our entries shows up as sort=morphe_*.
+        AddUriAndActionHeadersFingerprint.method.addInstructions(
+            0,
+            "invoke-static/range {p1 .. p1}, $HELPER->flipkartPageUri(Ljava/lang/String;)V",
+        )
+
         // Every NetworkCaller variant resolves the JS Promise from a
         // `OnSuccess(String)` callback.  Transform the raw JSON in place before
         // the original code resolves it (and, for the *AndCache variants,

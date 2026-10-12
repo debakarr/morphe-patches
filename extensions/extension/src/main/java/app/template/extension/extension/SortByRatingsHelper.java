@@ -81,6 +81,11 @@ public final class SortByRatingsHelper {
         return MyntraListing.process(json);
     }
 
+    /** Flipkart: the page URI of a page fetch the app is sending (hooked in addURIAndActionHeaders). */
+    public static void flipkartPageUri(String uri) {
+        FlipkartSortMenu.onPageUri(uri);
+    }
+
     /** Myntra: the layout-engine page request the app is sending (hooked in LayoutEngineModule). */
     public static void myntraPageRequest(Object request) {
         MyntraSortMenu.onPageRequest(request);
@@ -168,6 +173,8 @@ public final class SortByRatingsHelper {
      */
     public static String processFlipkartResponseJson(String json) {
         if (json == null || json.length() < 10) return json;
+        // Our entries in Flipkart's own Sort tab (independent of the floating buttons).
+        json = FlipkartSortMenu.rewriteResponse(json);
 
         // New ATLAS search/browse feed: products live in rows
         // (RESPONSE.slots[].widget.data.dlsData.{horizontalListData_0,gridData_0}.value),
