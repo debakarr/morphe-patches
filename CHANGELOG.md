@@ -1,3 +1,11 @@
+## [1.9.0](https://github.com/debakarr/morphe-patches/compare/v1.8.0...v1.9.0) (2026-10-12)
+
+### ✨ New Features
+
+* **amazon:** add Most rated / Top rated to Amazon's own Sort by list ([c674cc1](https://github.com/debakarr/morphe-patches/commit/c674cc15cfb3434e7eddc610fe5e1da77614273c))
+* **flipkart:** add Most rated / Top rated to Flipkart's Sort tab; fix renamed copy crash ([0b39ff4](https://github.com/debakarr/morphe-patches/commit/0b39ff4911ad93b86fa0a28a514cf4f10994d8dd))
+* **meesho,myntra:** add Most rated / Top rated to the apps' own Sort sheets ([31ed06b](https://github.com/debakarr/morphe-patches/commit/31ed06b531fe3010f343d9558b169b0e6f578706))
+
 ## [1.8.0](https://github.com/debakarr/morphe-patches/compare/v1.7.0...v1.8.0) (2026-10-06)
 
 ### ✨ New Features
