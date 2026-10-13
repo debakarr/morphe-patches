@@ -138,6 +138,9 @@ export ANDROID_HOME=~/android-sdk GITHUB_ACTOR=<user> GITHUB_TOKEN=$(gh auth tok
 gh workflow run release.yml --ref main
 ```
 
+The full workflow — patching an APK, installing it next to the original on a phone, verifying it, debugging with REA,
+and releasing — is in **[DEVELOPMENT.md](DEVELOPMENT.md)**.
+
 ## License
 
 This project is licensed under the GNU General Public License v3.0 — see [LICENSE](LICENSE) for details.

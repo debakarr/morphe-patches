@@ -18,6 +18,10 @@ If you encounter a bug while using Debakar's Morphe Patches, open an issue using
 
 Bug reports must include logs, the patch source release used to create the patched APK, and the APK source/type.
 
+## 🛠️ Building and testing
+
+See [DEVELOPMENT.md](DEVELOPMENT.md) for how to build, patch, install and verify on a device, use REA, and release.
+
 ## 📝 How to contribute
 
 1. Before contributing, it is recommended to open an issue to discuss your change
